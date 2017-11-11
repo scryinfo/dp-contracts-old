@@ -69,7 +69,7 @@ contract Scry {
         address _receiver,
         uint32 _open_block_number)
         public
-        constant
+        pure
         returns (bytes32 data)
     {
         return keccak256(_sender, _receiver, _open_block_number);
@@ -85,7 +85,7 @@ contract Scry {
         uint32 _open_block_number,
         uint192 _balance)
         public
-        constant
+        pure
         returns (string)
     {
         string memory str = concat("Receiver: 0x", addressToString(_receiver));
@@ -109,7 +109,6 @@ contract Scry {
         uint192 _balance,
         bytes _balance_msg_sig)
         public
-        constant
         returns (address)
     {
         //GasCost('close verifyBalanceProof getBalanceMessage start', block.gaslimit, msg.gas);
@@ -136,7 +135,7 @@ contract Scry {
 
 
         // Hash the prefixed message string
-        bytes32 prefixed_message_hash = sha3(prefixed_message);
+        bytes32 prefixed_message_hash = keccak256(prefixed_message);
 
         // Derive address from signature
         address signer = ECVerify.ecverify(prefixed_message_hash, _balance_msg_sig);
@@ -183,7 +182,7 @@ contract Scry {
     function addressFromData (
         bytes b)
         internal
-        constant
+        pure
         returns (address)
     {
         bytes20 addr;
@@ -200,6 +199,7 @@ contract Scry {
         uint src,
         uint len)
         private
+        pure
     {
         // Copy word-length chunks while possible
         for(; len >= 32; len -= 32) {
@@ -224,7 +224,7 @@ contract Scry {
         string _self,
         string _other)
         internal
-        constant
+        pure
         returns (string)
     {
         uint self_len = bytes(_self).length;
@@ -249,7 +249,7 @@ contract Scry {
     function uintToString(
         uint v)
         internal
-        constant
+        pure
         returns (string)
     {
         bytes32 ret;
@@ -284,7 +284,7 @@ contract Scry {
     function addressToString(
         address x)
         internal
-        constant
+        pure
         returns (string)
     {
         bytes memory str = new bytes(40);
@@ -300,7 +300,7 @@ contract Scry {
 
     function char(byte b)
         internal
-        constant
+        pure
         returns (byte c)
     {
         if (b < 10) return byte(uint8(b) + 0x30);

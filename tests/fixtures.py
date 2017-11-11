@@ -1,13 +1,15 @@
 import pytest
+from populus.utils.wait import wait_for_transaction_receipt
 
 
 @pytest.fixture
 def create_token():
     def get(chain, token_type, arguments):
+        owner = chain.web3.eth.coinbase
         token, _ = chain.provider.get_or_deploy_contract(
             token_type,
             deploy_args=arguments,
-            deploy_transaction={'from': chain.web3.eth.coinbase})
+            deploy_transaction={'from': owner})
         return token
     return get
 
@@ -32,14 +34,26 @@ def create_channel(create_contract):
         # get accounts
         (owner, buyer, seller) = chain.web3.eth.accounts[:3]
         print(f'owner:{owner} buyer:{buyer} seller:{seller}')
-        # create buyer with 100 tokens
-        token.transact({"from": owner}).transfer(buyer, 100)
+
+        if token.call().balanceOf(buyer) == 0:
+            # fund buyer with 100 tokens
+            txid = token.transact({"from": owner}).transfer(buyer, 100)
+            print("buyer fund txid:" + txid)
+            receipt = wait_for_transaction_receipt(
+                chain.web3, txid)
+            print(f"buyer fund receipt: {receipt}")
+
         assert token.call().balanceOf(buyer) == 100
 
         # create channel to seller
+        # sellers 20B address in ascii hex
         txdata = seller[2:].zfill(40)
-        token.transact({"from": buyer}).transfer(
+        txid = token.transact({"from": buyer}).transfer(
             contract.address, 100, bytes.fromhex(txdata))
+        print("channel txid:" + txid)
+        receipt = wait_for_transaction_receipt(
+            chain.web3, txid)
+        print(f"channel receipt: {receipt}")
 
         assert token.call().balanceOf(buyer) == 0
         assert token.call().balanceOf(seller) == 0

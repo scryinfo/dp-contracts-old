@@ -2,30 +2,35 @@ import pytest
 
 
 @pytest.fixture
-def create_token(chain):
-    def get(token_type, arguments):
+def create_token():
+    def get(chain, token_type, arguments):
         token, _ = chain.provider.get_or_deploy_contract(
-            token_type, deploy_args=arguments)
+            token_type,
+            deploy_args=arguments,
+            deploy_transaction={'from': chain.web3.eth.coinbase})
         return token
     return get
 
 
 @pytest.fixture()
-def create_contract(chain, create_token):
-    def get(token_type, token_args, contract_type):
-        token = create_token(token_type, token_args)
+def create_contract(create_token):
+    def get(chain, token_type, token_args, contract_type):
+        token = create_token(chain, token_type, token_args)
         contract, _ = chain.provider.get_or_deploy_contract(
-            contract_type, deploy_args=[token.address])
+            contract_type,
+            deploy_args=[token.address],
+            deploy_transaction={'from': chain.web3.eth.coinbase})
         return token, contract
     return get
 
 
 @pytest.fixture()
-def create_channel(chain, create_contract, web3):
-    def get(token_type, token_args, contract_type):
+def create_channel(create_contract):
+    def get(chain, token_type, token_args, contract_type):
         token, contract = create_contract(
-            token_type, token_args, contract_type)
-        (owner, buyer, seller) = web3.eth.accounts[:3]
+            chain, token_type, token_args, contract_type)
+        # get accounts
+        (owner, buyer, seller) = chain.web3.eth.accounts[:3]
         print(f'owner:{owner} buyer:{buyer} seller:{seller}')
         # create buyer with 100 tokens
         token.transact({"from": owner}).transfer(buyer, 100)

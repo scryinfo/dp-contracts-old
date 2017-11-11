@@ -1,0 +1,1 @@
+geth --datadir /Users/me/src/scry/scry/chains/scrychain/chain_data --networkid 1234 --ipcpath /Users/me/src/scry/scry/chains/scrychain/chain_data/geth.ipc --password /Users/me/src/scry/scry/chains/scrychain/password $@

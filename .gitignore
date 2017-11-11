@@ -1,3 +1,4 @@
 __pycache__/
 .cache
 .vscode
+chains/scrychain/chain_data/geth/

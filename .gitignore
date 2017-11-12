@@ -4,3 +4,4 @@ __pycache__/
 chains/scrychain/chain_data/geth/
 logs
 registrar.json
+build

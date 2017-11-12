@@ -28,37 +28,29 @@ def create_contract(create_token):
 
 @pytest.fixture()
 def create_channel(create_contract):
-    def get(chain, token_type, token_args, contract_type):
-        token, contract = create_contract(
-            chain, token_type, token_args, contract_type)
-        # get accounts
-        (owner, buyer, seller) = chain.web3.eth.accounts[:3]
-        print(f'owner:{owner} buyer:{buyer} seller:{seller}')
+    def get(chain, token, contract, owner, buyer, seller, ch_value):
+        # fund buyer with 100 tokens
+        txid = token.transact({"from": owner}).transfer(buyer, ch_value)
+        print("buyer fund txid:" + txid)
+        receipt = wait_for_transaction_receipt(
+            chain.web3, txid)
+        print(f"buyer fund receipt: {receipt}")
 
-        if token.call().balanceOf(buyer) == 0:
-            # fund buyer with 100 tokens
-            txid = token.transact({"from": owner}).transfer(buyer, 100)
-            print("buyer fund txid:" + txid)
-            receipt = wait_for_transaction_receipt(
-                chain.web3, txid)
-            print(f"buyer fund receipt: {receipt}")
-
-        assert token.call().balanceOf(buyer) == 100
+        assert token.call().balanceOf(buyer) == ch_value
 
         # create channel to seller
         # sellers 20B address in ascii hex
         txdata = seller[2:].zfill(40)
         txid = token.transact({"from": buyer}).transfer(
-            contract.address, 100, bytes.fromhex(txdata))
+            contract.address, ch_value, bytes.fromhex(txdata))
         print("channel txid:" + txid)
-        receipt = wait_for_transaction_receipt(
-            chain.web3, txid)
+        receipt = wait_for_transaction_receipt(chain.web3, txid)
         print(f"channel receipt: {receipt}")
 
         assert token.call().balanceOf(buyer) == 0
         assert token.call().balanceOf(seller) == 0
-        assert token.call().balanceOf(contract.address) == 100
-        return token, contract
+        assert token.call().balanceOf(contract.address) == ch_value
+        return receipt['blockNumber']
 
     return get
 

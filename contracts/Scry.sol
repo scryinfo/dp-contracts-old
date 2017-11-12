@@ -27,7 +27,11 @@ contract Scry {
         address indexed _receiver,
         uint192 _deposit);
 
-    event Ev(address indexed _sender, uint192 _deposit, bytes data);
+    event ChannelSettled(
+        address indexed _sender,
+        address indexed _receiver,
+        uint32 indexed _open_block_number,
+        uint192 _balance);
 
     function Scry(address _token) {
         require(_token != 0x0);
@@ -36,6 +40,10 @@ contract Scry {
         token_address = _token;
         token = ERC223(_token);
     }
+
+    /*
+     *  External functions
+     */
 
     function tokenFallback(
         address _sender,
@@ -53,6 +61,43 @@ contract Scry {
         require(length == 20);
         address receiver = addressFromData(_data);
         createChannelPrivate(_sender, receiver, uint192(_deposit));
+    }
+
+    /// @dev Function called when receiver wants to close the channel and settle; receiver needs a balance proof to immediately settle
+    /// @param _open_block_number The block number at which a channel between the sender and receiver was created.
+    /// @param _balance The amount of tokens owed by the sender to the receiver.
+    /// @param _balance_msg_sig The balance message signed by the sender.
+    function close(
+        uint32 _open_block_number,
+        uint192 _balance,
+        bytes _balance_msg_sig)
+        external
+    {
+        require(_balance_msg_sig.length == 65);
+        //GasCost('close verifyBalanceProof start', block.gaslimit, msg.gas);
+        address sender = verifyBalanceProof(msg.sender, _open_block_number, _balance, _balance_msg_sig);
+        //GasCost('close verifyBalanceProof end', block.gaslimit, msg.gas);
+
+        settleChannel(sender, msg.sender, _open_block_number, _balance);
+    }
+
+    /// @dev Function for getting information about a channel.
+    /// @param _sender The address that sends tokens.
+    /// @param _receiver The address that receives tokens.
+    /// @param _open_block_number The block number at which a channel between the sender and receiver was created.
+    /// @return Channel information (unique_identifier, deposit, settle_block_number, closing_balance).
+    function getChannelInfo(
+        address _sender,
+        address _receiver,
+        uint32 _open_block_number)
+        external
+        constant
+        returns (bytes32, uint192)
+    {
+        bytes32 key = getKey(_sender, _receiver, _open_block_number);
+        require(channels[key].open_block_number != 0);
+
+        return (key, channels[key].deposit);
     }
 
     /*
@@ -171,9 +216,78 @@ contract Scry {
         ChannelCreated(_sender, _receiver, _deposit);
     }
 
+    /// @dev Closes the channel and settles by transfering the balance to the receiver and the rest of the deposit back to the sender.
+    /// @param _sender The address that sends tokens.
+    /// @param _receiver The address that receives tokens.
+    /// @param _open_block_number The block number at which a channel between the sender and receiver was created.
+    /// @param _balance The amount of tokens owed by the sender to the receiver.
+    function settleChannel(
+        address _sender,
+        address _receiver,
+        uint32 _open_block_number,
+        uint192 _balance)
+        private
+    {
+        //GasCost('settleChannel start', block.gaslimit, msg.gas);
+        bytes32 key = getKey(_sender, _receiver, _open_block_number);
+        Channel channel = channels[key];
+
+        // TODO delete this if we don't include open_block_number in the Channel struct
+        require(channel.open_block_number != 0);
+        require(_balance <= channel.deposit);
+
+        // send minimum of _balance and deposit to receiver
+        uint send_to_receiver = min(_balance, channel.deposit);
+        if(send_to_receiver > 0) {
+            //GasCost('settleChannel', block.gaslimit, msg.gas);
+            require(token.transfer(_receiver, send_to_receiver));
+        }
+
+        // send maximum of deposit - balance and 0 to sender
+        uint send_to_sender = max(channel.deposit - _balance, 0);
+        if(send_to_sender > 0) {
+            //GasCost('settleChannel', block.gaslimit, msg.gas);
+            require(token.transfer(_sender, send_to_sender));
+        }
+
+        assert(channel.deposit >= _balance);
+
+        // remove closed channel structures
+        delete channels[key];
+
+        ChannelSettled(_sender, _receiver, _open_block_number, _balance);
+        //GasCost('settleChannel end', block.gaslimit, msg.gas);
+    }
+
     /*
      *  Internal functions
      */
+
+    /// @dev Internal function for getting the maximum between two numbers.
+    /// @param a First number to compare.
+    /// @param b Second number to compare.
+    /// @return The maximum between the two provided numbers.
+    function max(uint192 a, uint192 b)
+        internal
+        constant
+        returns (uint)
+    {
+        if (a > b) return a;
+        else return b;
+    }
+
+    /// @dev Internal function for getting the minimum between two numbers.
+    /// @param a First number to compare.
+    /// @param b Second number to compare.
+    /// @return The minimum between the two provided numbers.
+    function min(uint192 a, uint192 b)
+        internal
+        constant
+        returns (uint)
+    {
+        if (a < b) return a;
+        else return b;
+    }
 
     // 2656 gas cost
     /// @dev Internal function for getting an address from tokenFallback data bytes.

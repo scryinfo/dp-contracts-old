@@ -4,35 +4,6 @@ from fixtures import (print_logs, create_contract,
                       create_token, create_channel)
 
 
-def test_create_contract(project, create_contract):
-    with project.get_chain('tester') as chain:
-        token, contract = create_contract(chain, 'ScryToken', [1000], 'Scry')
-        # assert token.call().balanceOf(chain.web3.eth.coinbase) == 1000
-        assert token.call().balanceOf(contract.address) == 0
-
-
-def test_create_channel(project, create_contract, create_channel):
-    with project.get_chain('tester') as chain:
-        token, contract = create_contract(chain, 'ScryToken', [1000], 'Scry')
-
-        # get accounts
-        (owner, buyer, seller) = chain.web3.eth.accounts[:3]
-        print(f'owner:{owner} buyer:{buyer} seller:{seller}')
-
-        # accounts need to be unlocked
-        block = create_channel(chain, token, contract,
-                               owner, buyer, seller, 100)
-        print(f"channel create block: {block}")
-
-        key, deposit = contract.call().getChannelInfo(buyer, seller, block)
-        print(f"channel: {binascii.b2a_hex(key.encode())} deposit {deposit}")
-        assert deposit == 100
-        print(f"create block: {block}")
-
-        print_logs(token, "Transfer", "Transfer")
-        print_logs(contract, "ChannelCreated", "ChannelCreated")
-
-
 def test_contract_msgs(project, create_contract):
     with project.get_chain('scrychain') as chain:
         token, contract = create_contract(chain, 'ScryToken', [1000], 'Scry')
@@ -53,6 +24,9 @@ def test_contract_msgs(project, create_contract):
         assert proof.lower() == web3.eth.accounts[1]
 
 
+CID = "QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd"
+
+
 def test_verify_proof(project, create_contract):
     with project.get_chain('scrychain') as chain:
         token, contract = create_contract(chain, 'ScryToken', [1000], 'Scry')
@@ -60,14 +34,10 @@ def test_verify_proof(project, create_contract):
         (owner, buyer, seller, verifier) = chain.web3.eth.accounts[:4]
         print(f'owner:{owner} buyer:{buyer} seller:{seller} verifier:{verifier}')
 
-        msg = contract.call().getVerifyMessage(
-            seller, "QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd")
+        msg = contract.call().getVerifyMessage(seller, CID)
         sig = binascii.unhexlify(chain.web3.eth.sign(verifier, msg)[2:])
         assert contract.call().verifyVerificationProof(
-            seller, "QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd", sig).lower() == verifier
-
-
-CID = "QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd"
+            seller, CID, sig).lower() == verifier
 
 
 def test_close_channel(project, create_contract, create_channel):

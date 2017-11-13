@@ -5,3 +5,5 @@ chains/scrychain/chain_data/geth/
 logs
 registrar.json
 build
+node_modules
+yarn*

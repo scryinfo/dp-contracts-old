@@ -40,9 +40,8 @@ async function main() {
 
   scry.events.ChannelCreated({}, (err, event) => {
     console.log(
-      `Created:${JSON.stringify(
-        event.returnValues
-      )}, block:${event.blockNumber} err:${err}`
+      `Created:${JSON.stringify(event.returnValues)}, 
+      block:${event.blockNumber} err:${err}`
     );
   });
   scry.events.ChannelSettled({}, (err, event) => {

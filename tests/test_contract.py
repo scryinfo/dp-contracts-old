@@ -1,7 +1,7 @@
 import binascii
 from populus.utils.wait import wait_for_transaction_receipt
 from fixtures import (print_logs, create_contract,
-                      create_token, create_channel)
+                      create_token, create_channel, refund)
 
 
 def test_contract_msgs(project, create_contract):
@@ -40,7 +40,7 @@ def test_verify_proof(project, create_contract):
             seller, CID, sig).lower() == verifier
 
 
-def test_close_channel(project, create_contract, create_channel):
+def test_close_channel(project, create_contract, create_channel, refund):
     with project.get_chain('scrychain') as chain:
         token, contract = create_contract(chain, 'ScryToken', [1000], 'Scry')
         # get accounts
@@ -53,11 +53,11 @@ def test_close_channel(project, create_contract, create_channel):
         print(f"channel create block: {block}")
 
         # buyer -> seller
-        balance = contract.call().getBalanceMessage(seller, block, 20)
+        balance = contract.call().getBalanceMessage(seller, block, 100)
         balance_sig = binascii.unhexlify(
             chain.web3.eth.sign(buyer, balance)[2:])
         assert contract.call().verifyBalanceProof(
-            seller, block, 20, balance_sig).lower() == buyer
+            seller, block, 100, balance_sig).lower() == buyer
 
         # verifier -> seller
         verification = contract.call().getVerifyMessage(seller, CID)
@@ -68,13 +68,15 @@ def test_close_channel(project, create_contract, create_channel):
 
         # close with balance msg (transferred out-of-band)
         txid = contract.transact({"from": seller}).close(
-            buyer, block, 20, balance_sig, verifier, CID, verify_sig)
+            buyer, block, 100, balance_sig, verifier, CID, verify_sig)
         print("close txid:" + txid)
         receipt = wait_for_transaction_receipt(chain.web3, txid)
         print(f"close receipt: {receipt}")
 
-        assert token.call().balanceOf(buyer) == 80
-        assert token.call().balanceOf(seller) == 20
+        assert token.call().balanceOf(buyer) == 0
+        assert token.call().balanceOf(seller) == 100
+
+        refund(chain, token, owner, buyer, seller)
 
         print_logs(token, "Transfer", "Transfer")
         print_logs(contract, "ChannelCreated", "ChannelCreated")

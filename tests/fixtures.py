@@ -32,8 +32,7 @@ def create_channel(create_contract):
         # fund buyer with 100 tokens
         txid = token.transact({"from": owner}).transfer(buyer, ch_value)
         print("buyer fund txid:" + txid)
-        receipt = wait_for_transaction_receipt(
-            chain.web3, txid)
+        receipt = wait_for_transaction_receipt(chain.web3, txid)
         print(f"buyer fund receipt: {receipt}")
 
         assert token.call().balanceOf(buyer) == ch_value
@@ -51,6 +50,24 @@ def create_channel(create_contract):
         assert token.call().balanceOf(seller) == 0
         assert token.call().balanceOf(contract.address) == ch_value
         return receipt['blockNumber']
+
+    return get
+
+
+@pytest.fixture()
+def refund():
+    def get(chain, token, owner, buyer, seller):
+        txid = token.transact({"from": buyer}).transfer(
+            owner, token.call().balanceOf(buyer))
+        print("buyer refund txid:" + txid)
+        receipt = wait_for_transaction_receipt(chain.web3, txid)
+        print(f"buyer refund receipt: {receipt}")
+
+        txid = token.transact({"from": seller}).transfer(
+            owner, token.call().balanceOf(seller))
+        print("seller refund txid:" + txid)
+        receipt = wait_for_transaction_receipt(chain.web3, txid)
+        print(f"seller refund receipt: {receipt}")
 
     return get
 

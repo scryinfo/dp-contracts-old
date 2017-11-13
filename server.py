@@ -60,6 +60,18 @@ with project.get_chain('scrychain') as chain:
             {'verification_sig': chain.web3.eth.sign(verifier, verification)[2:]})
         return response
 
+    @app.route("/seller/verify_balance")
+    def verify_balance():
+        balance_sig = request.args.get('balance_sig')
+        create_block = int(request.args.get('block', 5))
+        proof = contract.call().verifyBalanceProof(
+            seller, create_block, 100, binascii.unhexlify(balance_sig))
+        if(proof.lower() == buyer):
+            response = jsonify({'verification': 'OK'})
+        else:
+            response = jsonify({'verification': "!!"})
+        return response
+
     @app.route('/seller/close')
     def close():
         balance_sig = request.args.get('balance_sig')

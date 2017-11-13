@@ -30,8 +30,13 @@ contract Scry {
     event ChannelSettled(
         address indexed _sender,
         address indexed _receiver,
-        uint32 indexed _open_block_number,
+        address indexed _verifier,
+        uint32 _open_block_number,
         uint192 _balance);
+
+    /*
+     * Constructor
+     */
 
     function Scry(address _token) {
         require(_token != 0x0);
@@ -68,17 +73,23 @@ contract Scry {
     /// @param _balance The amount of tokens owed by the sender to the receiver.
     /// @param _balance_msg_sig The balance message signed by the sender.
     function close(
+        address _buyer,
         uint32 _open_block_number,
         uint192 _balance,
-        bytes _balance_msg_sig)
+        bytes _balance_msg_sig,
+        address _verifier,
+        string _cid,
+        bytes _verify_msg_sig)
         external
     {
         require(_balance_msg_sig.length == 65);
         //GasCost('close verifyBalanceProof start', block.gaslimit, msg.gas);
-        address sender = verifyBalanceProof(msg.sender, _open_block_number, _balance, _balance_msg_sig);
+        address buyer = verifyBalanceProof(msg.sender, _open_block_number, _balance, _balance_msg_sig);
+        require(buyer == _buyer);
         //GasCost('close verifyBalanceProof end', block.gaslimit, msg.gas);
-
-        settleChannel(sender, msg.sender, _open_block_number, _balance);
+        address verifier = verifyVerificationProof(msg.sender, _cid, _verify_msg_sig);
+        require(verifier == _verifier);
+        settleChannel(buyer, msg.sender, verifier, _open_block_number, _balance);
     }
 
     /// @dev Function for getting information about a channel.
@@ -136,8 +147,21 @@ contract Scry {
         string memory str = concat("Receiver: 0x", addressToString(_receiver));
         str = concat(str, ", Balance: ");
         str = concat(str, uintToString(uint256(_balance)));
-        str = concat(str, ", Channel ID: ");
+        str = concat(str, ", At Block: ");
         str = concat(str, uintToString(uint256(_open_block_number)));
+        return str;
+    }
+
+    function getVerifyMessage(
+        address _owner,
+        string _cid)
+        public
+        pure
+        returns (string)
+    {
+        string memory str = concat("Owner: 0x", addressToString(_owner));
+        str = concat(str, ", For CID: ");
+        str = concat(str, _cid);
         return str;
     }
 
@@ -187,6 +211,44 @@ contract Scry {
         return signer;
     }
 
+    function verifyVerificationProof(
+        address _seller,
+        string _cid,
+        bytes _verify_msg_sig)
+        public
+        returns (address)
+    {
+        //GasCost('close verifyBalanceProof getBalanceMessage start', block.gaslimit, msg.gas);
+        // Create message which should be signed by sender
+        string memory message = getVerifyMessage(_seller, _cid);
+        //GasCost('close verifyBalanceProof getBalanceMessage end', block.gaslimit, msg.gas);
+
+        //GasCost('close verifyBalanceProof length start', block.gaslimit, msg.gas);
+        // 2446 gas cost
+        // TODO: improve length calc
+        uint message_length = bytes(message).length;
+        //GasCost('close verifyBalanceProof length end', block.gaslimit, msg.gas);
+
+        //GasCost('close verifyBalanceProof uintToString start', block.gaslimit, msg.gas);
+        string memory message_length_string = uintToString(message_length);
+        //GasCost('close verifyBalanceProof uintToString end', block.gaslimit, msg.gas);
+
+        //GasCost('close verifyBalanceProof concat start', block.gaslimit, msg.gas);
+        // Prefix the message
+        string memory prefixed_message = concat(prefix, message_length_string);
+        //GasCost('close verifyBalanceProof concat end', block.gaslimit, msg.gas);
+
+        prefixed_message = concat(prefixed_message, message);
+
+
+        // Hash the prefixed message string
+        bytes32 prefixed_message_hash = keccak256(prefixed_message);
+
+        // Derive address from signature
+        address signer = ECVerify.ecverify(prefixed_message_hash, _verify_msg_sig);
+        return signer;
+    }
+
     /*
      *  Private functions
      */
@@ -224,6 +286,7 @@ contract Scry {
     function settleChannel(
         address _sender,
         address _receiver,
+        address _verifier,
         uint32 _open_block_number,
         uint192 _balance)
         private
@@ -255,7 +318,7 @@ contract Scry {
         // remove closed channel structures
         delete channels[key];
 
-        ChannelSettled(_sender, _receiver, _open_block_number, _balance);
+        ChannelSettled(_sender, _receiver, _verifier, _open_block_number, _balance);
         //GasCost('settleChannel end', block.gaslimit, msg.gas);
     }
 

@@ -53,11 +53,28 @@ def test_contract_msgs(project, create_contract):
         assert proof.lower() == web3.eth.accounts[1]
 
 
+def test_verify_proof(project, create_contract):
+    with project.get_chain('scrychain') as chain:
+        token, contract = create_contract(chain, 'ScryToken', [1000], 'Scry')
+        # get accounts
+        (owner, buyer, seller, verifier) = chain.web3.eth.accounts[:4]
+        print(f'owner:{owner} buyer:{buyer} seller:{seller} verifier:{verifier}')
+
+        msg = contract.call().getVerifyMessage(
+            seller, "QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd")
+        sig = binascii.unhexlify(chain.web3.eth.sign(verifier, msg)[2:])
+        assert contract.call().verifyVerificationProof(
+            seller, "QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd", sig).lower() == verifier
+
+
+CID = "QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd"
+
+
 def test_close_channel(project, create_contract, create_channel):
     with project.get_chain('scrychain') as chain:
         token, contract = create_contract(chain, 'ScryToken', [1000], 'Scry')
         # get accounts
-        (owner, buyer, seller) = chain.web3.eth.accounts[:3]
+        (owner, buyer, seller, verifier) = chain.web3.eth.accounts[:4]
         print(f'owner:{owner} buyer:{buyer} seller:{seller}')
 
         # accounts need to be unlocked
@@ -66,16 +83,29 @@ def test_close_channel(project, create_contract, create_channel):
         print(f"channel create block: {block}")
 
         # buyer -> seller
-        msg = contract.call().getBalanceMessage(seller, block, 20)
-        balance = binascii.unhexlify(chain.web3.eth.sign(buyer, msg)[2:])
+        balance = contract.call().getBalanceMessage(seller, block, 20)
+        balance_sig = binascii.unhexlify(
+            chain.web3.eth.sign(buyer, balance)[2:])
         assert contract.call().verifyBalanceProof(
-            seller, block, 20, balance).lower() == buyer
+            seller, block, 20, balance_sig).lower() == buyer
 
-        # close with balance msg
-        txid = contract.transact({"from": seller}).close(block, 20, balance)
+        # verifier -> seller
+        verification = contract.call().getVerifyMessage(seller, CID)
+        verify_sig = binascii.unhexlify(
+            chain.web3.eth.sign(verifier, verification)[2:])
+        assert contract.call().verifyVerificationProof(
+            seller, CID, verify_sig).lower() == verifier
+
+        # close with balance msg (transferred out-of-band)
+        txid = contract.transact({"from": seller}).close(
+            buyer, block, 20, balance_sig, verifier, CID, verify_sig)
         print("close txid:" + txid)
         receipt = wait_for_transaction_receipt(chain.web3, txid)
         print(f"close receipt: {receipt}")
 
         assert token.call().balanceOf(buyer) == 80
         assert token.call().balanceOf(seller) == 20
+
+        print_logs(token, "Transfer", "Transfer")
+        print_logs(contract, "ChannelCreated", "ChannelCreated")
+        print_logs(contract, "ChannelSettled", "ChannelSettled")

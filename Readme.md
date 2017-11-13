@@ -67,6 +67,10 @@ curl "localhost:5000/seller/close?CID=QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47
 }
 ```
 
+**TODO**
+- Add ability to check buyer, seller & verifier accounts
+- Add UI
+
 ## Running the tests
 The tests in test_contract_simple.py run with with in-built *tester* chain.
 

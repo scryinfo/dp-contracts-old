@@ -1,11 +1,13 @@
 This directory contains the Proof Of Concept for some of the ideas put forth in the Scry.Info whitepaper.
 
 # Development
+Install python dependencies using pip:
+```
+pip[3] install -r requirements.txt
+```
 
-We use the python framework populus.
-```
-pip[3] install -U populus
-```
+We use the python framework populus for smart contract development.
+
 See basic [tutorials](http://populus.readthedocs.io/en/latest/tutorial.html) for usage 
 
 # REST endpoints

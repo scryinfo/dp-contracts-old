@@ -14,7 +14,7 @@
           "class": "web3.providers.ipc.IPCProvider",
           "settings": {
             "ipc_path":
-              "/Users/me/src/scry/scry/chains/scrychain/chain_data/geth.ipc"
+              "chains/scrychain/chain_data/geth.ipc"
           }
         }
       },

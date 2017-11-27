@@ -41,7 +41,7 @@ curl localhost:5000/buyer/channel
 ```
 - Buyer signs authorization to pay Seller
 ```
-curl localhost:5000/buyer/sign?block=1418
+curl localhost:5000/buyer/authorize?block=1418
 {
   "balance_sig": "aabc0673229de2bb056a8745b93636128483812a0cc66da3c8b95ae91c47f055522b9a3d13f92ddb87d08319a2cd4b10d6b845b1b705391e7fa3f610b7f1f7d41b"
 }

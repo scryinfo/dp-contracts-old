@@ -12,16 +12,30 @@ contract("ScryToken", accounts => {
     assert.equal(balance.toNumber(), total.toNumber(), "bad balance");
   });
 
-  it("should transfer to another account", async accounts => {
-    const deployed = await Token.deployed();
-    console.info("deployed at: ", deployed.address);
-
-    const res = await deployed.transfer(accounts[1], 100, {
-      from: accounts[0]
-    });
-    console.info("res:", res);
-    assert.equal(res, true);
-    const bal = await deployed.balanceOf.call(accounts[1]);
-    assert.equal(bal.toNumber(), 100, "correct balance");
+  it("should transfer to another account", done => {
+    let deployed;
+    return Token.deployed()
+      .then(res => {
+        deployed = res;
+        console.info("deployed at: ", deployed.address);
+      })
+      .then(() => {
+        return deployed.balanceOf.call(accounts[0]).then(bal => {
+          console.info(`balance: ${bal}`);
+        });
+      })
+      .then(() => {
+        const to = accounts[1];
+        console.info("send to: ", to);
+        return deployed.transfer(to, 100);
+      })
+      .then(res => {
+        console.info("res:", res);
+        assert.equal(res, true);
+        return deployed.balanceOf.call(to);
+      })
+      .then(bal => {
+        assert.equal(bal.toNumber(), 100, "correct balance");
+      });
   });
 });

@@ -11,10 +11,13 @@ project = Project()
 with project.get_chain('scrychain') as chain:
     # accounts need to be unlocked
     (owner, buyer, seller, verifier) = chain.web3.eth.accounts[:4]
-    print(f"owner: {owner}")
-    print(f"buyer: {buyer}")
-    print(f"seller: {seller}")
-    print(f"verifier: {verifier}")
+    accounts = {}
+    accounts['owner'] = owner
+    accounts['buyer'] = buyer
+    accounts['seller'] = seller
+    accounts['verifier'] = verifier
+
+    print(f"accounts: {accounts}")
 
     token, _ = chain.provider.get_or_deploy_contract(
         'ScryToken',
@@ -27,6 +30,13 @@ with project.get_chain('scrychain') as chain:
         deploy_args=[token.address],
         deploy_transaction={'from': owner})
     print(f"contract: {contract.address}")
+    accounts['contract'] = contract.address
+
+    @app.route('/balance')
+    def balance():
+        account = accounts[request.args.get('account')]
+        response = jsonify({'balance': token.call().balanceOf(account)})
+        return response
 
     @app.route('/buyer/fund')
     def fund():
@@ -49,7 +59,7 @@ with project.get_chain('scrychain') as chain:
 
     @app.route('/buyer/authorize')
     def authorize():
-        create_block = int(request.args.get('block', 5))
+        create_block = int(request.args.get('create_block', 5))
         msg = contract.call().getBalanceMessage(seller, create_block, 100)
         response = jsonify(
             {'balance_sig': chain.web3.eth.sign(buyer, msg)[2:]})
@@ -84,7 +94,7 @@ with project.get_chain('scrychain') as chain:
         balance_sig = request.args.get('balance_sig')
         verify_sig = request.args.get('verification_sig')
         cid = request.args.get('CID')
-        create_block = int(request.args.get('block', 5))
+        create_block = int(request.args.get('create_block', 5))
 
         txid = contract.transact({"from": seller}).close(
             buyer, create_block, 100, binascii.unhexlify(balance_sig), verifier, cid, binascii.unhexlify(verify_sig))

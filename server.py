@@ -11,6 +11,10 @@ project = Project()
 with project.get_chain('scrychain') as chain:
     # accounts need to be unlocked
     (owner, buyer, seller, verifier) = chain.web3.eth.accounts[:4]
+    print(f"owner: {owner}")
+    print(f"buyer: {buyer}")
+    print(f"seller: {seller}")
+    print(f"verifier: {verifier}")
 
     token, _ = chain.provider.get_or_deploy_contract(
         'ScryToken',
@@ -63,9 +67,12 @@ with project.get_chain('scrychain') as chain:
     @app.route("/seller/verify_balance")
     def verify_balance():
         balance_sig = request.args.get('balance_sig')
-        create_block = int(request.args.get('block', 5))
+        create_block = int(request.args.get('create_block'))
+        msg = contract.call().getBalanceMessage(seller, create_block, 100)
+        print(f"msg: {msg}")
         proof = contract.call().verifyBalanceProof(
             seller, create_block, 100, binascii.unhexlify(balance_sig))
+        print(f"proof: {proof}")
         if(proof.lower() == buyer):
             response = jsonify({'verification': 'OK'})
         else:

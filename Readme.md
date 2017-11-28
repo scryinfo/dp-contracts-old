@@ -44,6 +44,16 @@ curl localhost:5000/buyer/fund
 }
 ```
 
+* It is possible to check buyer, seller, verifier, owner & contract's token
+  balances at any time:
+
+```
+curl localhost:5000/balance?account=buyer
+{
+  "balance": 100
+}
+```
+
 * Buyer opens channel to Seller:
 
 ```
@@ -95,14 +105,13 @@ curl "localhost:5000/seller/close?CID=QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47
 
 **TODO**
 
-* Add ability to check buyer, seller & verifier accounts
 * Add UI
 
 ## Running the tests
 
-The tests in test_contract_simple.py run with with in-built _tester_ chain.
+The tests in test*contract_simple.py run with with in-built _tester* chain.
 
-The tests in test_contract.py require a _Geth_ based external chain that needs
+The tests in test*contract.py require a _Geth* based external chain that needs
 to be started separately.
 
 ## Imported Code

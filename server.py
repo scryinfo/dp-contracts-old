@@ -54,24 +54,30 @@ with project.get_chain('scrychain') as chain:
         response = jsonify({'balance': token.call().balanceOf(buyer)})
         return response
 
+    # create channel to seller
     @app.route('/buyer/channel')
     def channel():
+        amount = int(request.args.get('amount', 100))
+        print(f"channel: {amount}")
         txid = token.transact({"from": buyer}).transfer(
-            contract.address, 100, bytes.fromhex(seller[2:].zfill(40)))
+            contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
         print("channel txid:" + txid)
         receipt = wait_for_transaction_receipt(chain.web3, txid)
         print(f"channel receipt: {receipt}")
         response = jsonify({'create_block': receipt['blockNumber']})
         return response
 
+    # authorize string
     @app.route('/buyer/authorize')
     def authorize():
-        create_block = int(request.args.get('create_block', 5))
-        msg = contract.call().getBalanceMessage(seller, create_block, 100)
+        amount = int(request.args.get('amount', 100))
+        create_block = int(request.args.get('create_block'))
+        msg = contract.call().getBalanceMessage(seller, create_block, amount)
         response = jsonify(
             {'balance_sig': chain.web3.eth.sign(buyer, msg)[2:]})
         return response
 
+    #
     @app.route('/verifier/sign')
     def verify():
         cid = request.args.get('CID')
@@ -83,12 +89,13 @@ with project.get_chain('scrychain') as chain:
 
     @app.route("/seller/verify_balance")
     def verify_balance():
+        amount = int(request.args.get('amount', 100))
         balance_sig = request.args.get('balance_sig')
         create_block = int(request.args.get('create_block'))
-        msg = contract.call().getBalanceMessage(seller, create_block, 100)
+        msg = contract.call().getBalanceMessage(seller, create_block, amount)
         print(f"msg: {msg}")
         proof = contract.call().verifyBalanceProof(
-            seller, create_block, 100, binascii.unhexlify(balance_sig))
+            seller, create_block, amount, binascii.unhexlify(balance_sig))
         print(f"proof: {proof}")
         if(proof.lower() == buyer):
             response = jsonify({'verification': 'OK'})
@@ -98,14 +105,15 @@ with project.get_chain('scrychain') as chain:
 
     @app.route('/seller/close')
     def close():
+        amount = int(request.args.get('amount', 100))
         balance_sig = request.args.get('balance_sig')
         verify_sig = request.args.get('verification_sig')
         cid = request.args.get('CID')
-        create_block = int(request.args.get('create_block', 5))
+        create_block = int(request.args.get('create_block'))
 
         txid = contract.transact({"from": seller}).close(
-            buyer, create_block, 100, binascii.unhexlify(balance_sig), verifier, cid, binascii.unhexlify(verify_sig))
-        print("close txid:" + txid)
+            buyer, create_block, amount, binascii.unhexlify(balance_sig), verifier, cid, binascii.unhexlify(verify_sig))
+        print(f"close txid: {txid}")
         receipt = wait_for_transaction_receipt(chain.web3, txid)
         print(f"close receipt: {receipt}")
         response = jsonify({'close_block': receipt['blockNumber']})

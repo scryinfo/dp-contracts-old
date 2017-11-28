@@ -32,16 +32,23 @@ with project.get_chain('scrychain') as chain:
     print(f"contract: {contract.address}")
     accounts['contract'] = contract.address
 
+    # check balance
     @app.route('/balance')
     def balance():
         account = accounts[request.args.get('account')]
         response = jsonify({'balance': token.call().balanceOf(account)})
         return response
 
-    @app.route('/buyer/fund')
+    # fund participant
+    @app.route('/fund')
     def fund():
-        txid = token.transact({"from": owner}).transfer(buyer, 100)
-        print("buyer fund txid:" + txid)
+        to = request.args.get('account')
+        account = accounts[to]
+        amount = int(request.args.get('amount'))
+        print(f"fund {to}: {amount}")
+
+        txid = token.transact({"from": owner}).transfer(account, amount)
+        print(f"buyer fund txid: {txid}")
         receipt = wait_for_transaction_receipt(chain.web3, txid)
         print(f"buyer receipt: {receipt}")
         response = jsonify({'balance': token.call().balanceOf(buyer)})

@@ -38,7 +38,7 @@ An example session can work like this:
 * Buyer acquires SCRY tokens:
 
 ```
-curl localhost:5000/buyer/fund
+curl "localhost:5000/fund?account=buyer&amount=100"
 {
   "balance": 100
 }

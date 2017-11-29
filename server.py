@@ -1,8 +1,17 @@
 import binascii
 import sys
+import logging
 from flask import Flask, request, jsonify, current_app
+from flask.logging import PROD_LOG_FORMAT
 from populus import Project
 from populus.utils.wait import wait_for_transaction_receipt
+
+LOG = logging.getLogger('app')
+LOG.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+handler.setFormatter(logging.Formatter(PROD_LOG_FORMAT))
+LOG.addHandler(handler)
 
 
 class TransactionFailed(Exception):
@@ -13,14 +22,15 @@ class TransactionFailed(Exception):
 
 
 def check_txn(chain, txid):
+    LOG.info(f"waiting for: {txid}")
     receipt = wait_for_transaction_receipt(chain.web3, txid)
-    print(f"receipt: {receipt}")
+    LOG.info(f"receipt: {receipt}")
     # post BZ : status is 1 for success
     if receipt.status == '0x1':
         return receipt
     # 0 for fail with REVERT (for THROW gasused == gas)
     txinfo = chain.web3.eth.getTransaction(txid)
-    print(f"fund txn: {txinfo}")
+    LOG.info(f"txn: {txinfo}")
     raise TransactionFailed(txinfo['gas'], receipt['gasUsed'])
 
 
@@ -37,13 +47,13 @@ def run_app(app):
 
     with Project().get_chain('scrychain') as chain:
         def on_transfer(args):
-            print(f"new transfer: {args}")
+            LOG.info(f"new transfer: {args}")
 
         def on_channel(args):
-            print(f"new channel: {args}")
+            LOG.info(f"new channel: {args}")
 
         def on_settle(args):
-            print(f"new settlement: {args}")
+            LOG.info(f"new settlement: {args}")
 
         # accounts need to be unlocked
         accounts = {}
@@ -53,17 +63,17 @@ def run_app(app):
             accounts['buyer'] = buyer
             accounts['seller'] = seller
             accounts['verifier'] = verifier
-        except ConnectionRefusedError as e:
-            print(f"Cannot connect to geth: {e}", file=sys.stderr)
-            raise
+        except (ConnectionRefusedError, FileNotFoundError) as e:
+            LOG.error(f"Cannot connect to geth: {e}", file=sys.stderr)
+            sys.exit(-1)
 
-        print(f"accounts: {accounts}")
+        LOG.info(f"accounts: {accounts}")
 
         token, _ = chain.provider.get_or_deploy_contract(
             'ScryToken',
             deploy_args=[1000],
             deploy_transaction={'from': owner})
-        print(f"token: {token.address}")
+        LOG.info(f"token: {token.address}")
 
         token.on('Transfer', {}, on_transfer)
 
@@ -71,7 +81,7 @@ def run_app(app):
             'Scry',
             deploy_args=[token.address],
             deploy_transaction={'from': owner})
-        print(f"contract: {contract.address}")
+        LOG.info(f"contract: {contract.address}")
         accounts['contract'] = contract.address
 
         contract.on('ChannelCreated', {}, on_channel)
@@ -101,7 +111,7 @@ def run_app(app):
             amount = int(request.args.get('amount', 100))
             txid = token.transact({"from": buyer}).transfer(
                 contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
-            print(f"channel amount {amount} txid: {txid}")
+            LOG.info(f"channel amount {amount} txid: {txid}")
             receipt = check_txn(chain, txid)
             return jsonify({'create_block': receipt['blockNumber']})
 
@@ -129,10 +139,10 @@ def run_app(app):
             balance_sig = request.args.get('balance_sig')
             create_block = int(request.args.get('create_block'))
             msg = contract.call().getBalanceMessage(seller, create_block, amount)
-            print(f"msg: {msg}")
+            LOG.info(f"msg: {msg}")
             proof = contract.call().verifyBalanceProof(
                 seller, create_block, amount, binascii.unhexlify(balance_sig))
-            print(f"proof: {proof}")
+            LOG.info(f"proof: {proof}")
             if(proof.lower() == buyer):
                 response = jsonify({'verification': 'OK'})
             else:
@@ -159,9 +169,9 @@ def run_app(app):
             return jsonify({'close_block': receipt['blockNumber']})
 
 
-flask = Flask(__name__)
-with flask.app_context():
+app = Flask(__name__)
+with app.app_context():
     run_app(current_app)
 
 if __name__ == "__main__":
-    flask.run(threaded=False, debug=True)
+    app.run(threaded=False, debug=True)

@@ -6,7 +6,8 @@
   "config": {
     "daoForkBlock": 0,
     "daoForSupport": true,
-    "homesteadBlock": 0
+    "homesteadBlock": 0,
+    "byzantiumBlock": 0
   },
   "timestamp": "0x0",
   "mixhash":

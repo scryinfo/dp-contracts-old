@@ -3,3 +3,4 @@ Flask==0.12.2
 web3==3.16.2
 pytest==3.3.0
 pylint==1.7.4
+ipfsapi==0.4.2

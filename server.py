@@ -1,10 +1,11 @@
 import binascii
 import sys
 import logging
-from flask import Flask, request, jsonify, current_app
+from flask import Flask, request, jsonify, current_app, make_response, abort, Response
 from flask.logging import PROD_LOG_FORMAT
 from populus import Project
 from populus.utils.wait import wait_for_transaction_receipt
+import ipfsapi
 
 LOG = logging.getLogger('app')
 LOG.setLevel(logging.DEBUG)
@@ -12,6 +13,14 @@ handler = logging.StreamHandler()
 handler.setLevel(logging.DEBUG)
 handler.setFormatter(logging.Formatter(PROD_LOG_FORMAT))
 LOG.addHandler(handler)
+
+ipfs = {}
+try:
+    ipfs = ipfsapi.connect('127.0.0.1', 5001)
+except Exception as e:
+    LOG.error(f"cannot connect to ipfs: {e}")
+    sys.exit(-1)
+LOG.info(f"connected to IPFS: {ipfs.id()['ID']}")
 
 
 class TransactionFailed(Exception):
@@ -64,7 +73,7 @@ def run_app(app):
             accounts['seller'] = seller
             accounts['verifier'] = verifier
         except (ConnectionRefusedError, FileNotFoundError) as e:
-            LOG.error(f"Cannot connect to geth: {e}", file=sys.stderr)
+            LOG.error(f"Cannot connect to geth: {e}")
             sys.exit(-1)
 
         LOG.info(f"accounts: {accounts}")
@@ -133,6 +142,27 @@ def run_app(app):
             return jsonify(
                 {'verification_sig': chain.web3.eth.sign(verifier, verification)[2:]})
 
+        @app.route('/seller/upload', methods=['POST'])
+        def upload_file():
+            f = request.files['data']
+            added = ipfs.add(f)
+            LOG.info(f"ipfs upload: {added}")
+            return jsonify({'CID': added['Hash'], "size": added['Size']})
+
+        @app.route('/seller/download', methods=['GET'])
+        def download_file():
+            cid = request.args.get('CID')
+            raw_bytes = ''
+            try:
+                raw_bytes = ipfs.cat(cid)
+            except Exception as e:
+                abort(Response(response="invalid CID", status=400))
+            LOG.info(f"ipfs found: {cid}")
+            response = make_response(raw_bytes)
+            response.headers['Content-Type'] = "application/octet-stream"
+            response.headers['Content-Disposition'] = "inline; filename=" + cid
+            return response
+
         @app.route("/seller/verify_balance")
         def verify_balance():
             amount = int(request.args.get('amount', 100))
@@ -170,6 +200,8 @@ def run_app(app):
 
 
 app = Flask(__name__)
+# 1M file upload limit
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 with app.app_context():
     run_app(current_app)
 

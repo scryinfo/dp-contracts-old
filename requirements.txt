@@ -1,3 +1,4 @@
 populus==1.11.2
 Flask==0.12.2
 web3==3.16.2
+ipfsapi==0.4.2

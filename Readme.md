@@ -82,8 +82,25 @@ curl localhost:5000/seller/verify_balance?create_block=1418&balance_sig=aabc0673
 }
 ```
 
-* Seller creates the data, and uploads it to IPFS. Seller's asks the Verifier to
-  verify and sign the ipfs CID
+* Seller creates the data, and uploads it to IPFS. This can be done
+  independently or using the server
+
+```
+curl localhost:5000/seller/upload -F 'data=@/tmp/x.txt'
+{
+  "CID": "QmemJwwgeGckPXbuk8ckzHvKxbueJQZ95QLy1J8gKnMdiB",
+  "size": "11"
+}
+```
+
+* Seller's asks the Verifier to verify and sign the ipfs CID. Verifier downloads
+  the data independently or using the server
+
+```
+curl -v "localhost:5000/seller/download?CID=QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZ"
+```
+
+and signs it
 
 ```
 curl localhost:5000/verifier/sign?CID=QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd

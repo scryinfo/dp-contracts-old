@@ -3,6 +3,8 @@ import sys
 import logging
 from flask import Flask, request, jsonify, current_app, make_response, abort, Response
 from flask.logging import PROD_LOG_FORMAT
+from flask_cors import CORS
+
 from populus import Project
 from populus.utils.wait import wait_for_transaction_receipt
 import ipfsapi
@@ -17,10 +19,11 @@ LOG.addHandler(handler)
 ipfs = {}
 try:
     ipfs = ipfsapi.connect('127.0.0.1', 5001)
-except Exception as e:
-    LOG.error(f"cannot connect to ipfs: {e}")
+except Exception as ex:
+    LOG.error(f"cannot connect to ipfs: {ex}")
     sys.exit(-1)
-LOG.info(f"connected to IPFS: {ipfs.id()['ID']}")
+finally:
+    LOG.info(f"connected to IPFS: {ipfs.id()['ID']}")
 
 
 class TransactionFailed(Exception):
@@ -75,8 +78,8 @@ def run_app(app):
         except (ConnectionRefusedError, FileNotFoundError) as e:
             LOG.error(f"Cannot connect to geth: {e}")
             sys.exit(-1)
-
-        LOG.info(f"accounts: {accounts}")
+        finally:
+            LOG.info(f"geth accounts: {accounts}")
 
         token, _ = chain.provider.get_or_deploy_contract(
             'ScryToken',
@@ -202,6 +205,8 @@ def run_app(app):
 app = Flask(__name__)
 # 1M file upload limit
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+# allow all domains on all routes
+CORS(app)
 with app.app_context():
     run_app(current_app)
 

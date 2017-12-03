@@ -20,10 +20,10 @@ ipfs = {}
 try:
     ipfs = ipfsapi.connect('127.0.0.1', 5001)
 except Exception as ex:
-    LOG.error(f"cannot connect to ipfs: {ex}")
+    LOG.error("cannot connect to ipfs: {}".format(ex))
     sys.exit(-1)
 finally:
-    LOG.info(f"connected to IPFS: {ipfs.id()['ID']}")
+    LOG.info("connected to IPFS: {}".format(ipfs.id()['ID']))
 
 
 class TransactionFailed(Exception):
@@ -34,15 +34,15 @@ class TransactionFailed(Exception):
 
 
 def check_txn(chain, txid):
-    LOG.info(f"waiting for: {txid}")
+    LOG.info("waiting for: {}".format(txid))
     receipt = wait_for_transaction_receipt(chain.web3, txid)
-    LOG.info(f"receipt: {receipt}")
+    LOG.info("receipt: {}".format(receipt))
     # post BZ : status is 1 for success
     if receipt.status == '0x1':
         return receipt
     # 0 for fail with REVERT (for THROW gasused == gas)
     txinfo = chain.web3.eth.getTransaction(txid)
-    LOG.info(f"txn: {txinfo}")
+    LOG.info("txn: {}".format(txinfo))
     raise TransactionFailed(txinfo['gas'], receipt['gasUsed'])
 
 
@@ -59,13 +59,13 @@ def run_app(app):
 
     with Project().get_chain('scrychain') as chain:
         def on_transfer(args):
-            LOG.info(f"new transfer: {args}")
+            LOG.info("new transfer: {}".format(args))
 
         def on_channel(args):
-            LOG.info(f"new channel: {args}")
+            LOG.info("new channel: {}".format(args))
 
         def on_settle(args):
-            LOG.info(f"new settlement: {args}")
+            LOG.info("new settlement: {}".format(args))
 
         # accounts need to be unlocked
         accounts = {}
@@ -76,16 +76,16 @@ def run_app(app):
             accounts['seller'] = seller
             accounts['verifier'] = verifier
         except (ConnectionRefusedError, FileNotFoundError) as e:
-            LOG.error(f"Cannot connect to geth: {e}")
+            LOG.error("Cannot connect to geth: {}".format(e))
             sys.exit(-1)
         finally:
-            LOG.info(f"geth accounts: {accounts}")
+            LOG.info("geth accounts: {}".format(accounts))
 
         token, _ = chain.provider.get_or_deploy_contract(
             'ScryToken',
             deploy_args=[1000],
             deploy_transaction={'from': owner})
-        LOG.info(f"token: {token.address}")
+        LOG.info("token: {}".format(token.address))
 
         token.on('Transfer', {}, on_transfer)
 
@@ -93,7 +93,7 @@ def run_app(app):
             'Scry',
             deploy_args=[token.address],
             deploy_transaction={'from': owner})
-        LOG.info(f"contract: {contract.address}")
+        LOG.info("contract: {}".format(contract.address))
         accounts['contract'] = contract.address
 
         contract.on('ChannelCreated', {}, on_channel)
@@ -123,7 +123,7 @@ def run_app(app):
             amount = int(request.args.get('amount', 100))
             txid = token.transact({"from": buyer}).transfer(
                 contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
-            LOG.info(f"channel amount {amount} txid: {txid}")
+            LOG.info("channel amount {} txid: {}".fomat(amount, txid))
             receipt = check_txn(chain, txid)
             return jsonify({'create_block': receipt['blockNumber']})
 
@@ -149,7 +149,7 @@ def run_app(app):
         def upload_file():
             f = request.files['data']
             added = ipfs.add(f)
-            LOG.info(f"ipfs upload: {added}")
+            LOG.info("ipfs upload: {}".format(added))
             return jsonify({'CID': added['Hash'], "size": added['Size']})
 
         @app.route('/seller/download', methods=['GET'])
@@ -160,7 +160,7 @@ def run_app(app):
                 raw_bytes = ipfs.cat(cid)
             except Exception as e:
                 abort(Response(response="invalid CID", status=400))
-            LOG.info(f"ipfs found: {cid}")
+            LOG.info("ipfs found: {}".format(cid))
             response = make_response(raw_bytes)
             response.headers['Content-Type'] = "application/octet-stream"
             response.headers['Content-Disposition'] = "inline; filename=" + cid
@@ -172,10 +172,10 @@ def run_app(app):
             balance_sig = request.args.get('balance_sig')
             create_block = int(request.args.get('create_block'))
             msg = contract.call().getBalanceMessage(seller, create_block, amount)
-            LOG.info(f"msg: {msg}")
+            LOG.info("msg: {}".format(msg))
             proof = contract.call().verifyBalanceProof(
                 seller, create_block, amount, binascii.unhexlify(balance_sig))
-            LOG.info(f"proof: {proof}")
+            LOG.info("proof: {}".format(proof))
             if(proof.lower() == buyer):
                 response = jsonify({'verification': 'OK'})
             else:

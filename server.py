@@ -210,5 +210,5 @@ CORS(app)
 with app.app_context():
     run_app(current_app)
 
-if __name__ == "__main__":
-    app.run(threaded=False, debug=True)
+# if __name__ == "__main__":
+#     app.run(threaded=False, debug=True)

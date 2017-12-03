@@ -94,7 +94,7 @@ curl localhost:5000/buyer/authorize?create_block=1418 { "balance_sig":
 }
 ```
 
-![Alt text](./doc/buyer.svg) <img src="./doc/buyer.svg">
+![Alt text](./doc/buyer.svg)
 
 * Buyer's authorization is transferred to Seller, and he verifies that it is
   correct
@@ -113,7 +113,7 @@ curl localhost:5000/seller/upload -F 'data=@/tmp/x.txt' { "CID":
 "QmemJwwgeGckPXbuk8ckzHvKxbueJQZ95QLy1J8gKnMdiB", "size": "11" }
 ```
 
-![Alt text](./doc/seller.svg) <img src="./doc/seller.svg">
+![Alt text](./doc/seller.svg)
 
 * Seller's asks the Verifier to verify and sign the ipfs CID. Verifier downloads
   the data independently or using the server
@@ -133,7 +133,7 @@ localhost:5000/verifier/sign?CID=QmPrafFmEqqQDUgepoVShKUDzdxWtd8UtwA211RE47LBZd
 }
 ```
 
-![Alt text](./doc/verification.svg) <img src="./doc/verification.svg">
+![Alt text](./doc/verification.svg)
 
 * Seller verifies if the signature is OK - TODO
 * Seller takes both signatures and closes the transaction. The Buyer's rewards
@@ -145,7 +145,7 @@ curl
 { "close_block": 1778 }
 ```
 
-![Alt text](./doc/settlement.svg) <img src="./doc/settlement.svg">
+![Alt text](./doc/settlement.svg)
 
 **TODO**
 

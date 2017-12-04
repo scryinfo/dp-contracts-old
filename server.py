@@ -123,7 +123,7 @@ def run_app(app):
             amount = int(request.args.get('amount', 100))
             txid = token.transact({"from": buyer}).transfer(
                 contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
-            LOG.info("channel amount {} txid: {}".fomat(amount, txid))
+            LOG.info("channel amount {} txid: {}".format(amount, txid))
             receipt = check_txn(chain, txid)
             return jsonify({'create_block': receipt['blockNumber']})
 

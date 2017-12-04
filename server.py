@@ -11,6 +11,10 @@ import ipfsapi
 
 from gevent import queue
 
+if __name__ == '__main__':
+    from gevent import monkey
+    monkey.patch_all()
+
 subscriptions = []
 
 
@@ -122,7 +126,7 @@ def run_app(app):
                     while True:
                         # message = sub.get_message()
                         message = q.get()
-                        yield "\ndata:{}\n\n".format(message)
+                        yield "data:{}\n\n".format(message)
                         # LOG.info("gevent: {}".format(message))
                 except GeneratorExit:
                     subscriptions.remove(q)
@@ -239,3 +243,9 @@ app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 CORS(app)
 with app.app_context():
     run_app(current_app)
+
+if __name__ == '__main__':
+    from gevent.wsgi import WSGIServer
+
+    http_server = WSGIServer(("", 5000), app)
+    http_server.serve_forever()

@@ -9,6 +9,16 @@ from populus import Project
 from populus.utils.wait import wait_for_transaction_receipt
 import ipfsapi
 
+from gevent import queue
+
+subscriptions = []
+
+
+def notify(ev):
+    for sub in subscriptions[:]:
+        sub.put(ev)
+
+
 LOG = logging.getLogger('app')
 LOG.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
@@ -59,13 +69,16 @@ def run_app(app):
 
     with Project().get_chain('scrychain') as chain:
         def on_transfer(args):
-            LOG.info("new transfer: {}".format(args))
+            notify(args)
+            # LOG.info("EVENT transfer: {}".format(args))
 
         def on_channel(args):
-            LOG.info("new channel: {}".format(args))
+            notify(args)
+            # LOG.info("EVENT channel: {}".format(args))
 
         def on_settle(args):
-            LOG.info("new settlement: {}".format(args))
+            notify(args)
+            # LOG.info("EVENT settlement: {}".format(args))
 
         # accounts need to be unlocked
         accounts = {}
@@ -98,6 +111,23 @@ def run_app(app):
 
         contract.on('ChannelCreated', {}, on_channel)
         contract.on('ChannelSettled', {}, on_settle)
+
+        # subscribe
+        @app.route("/subscribe")
+        def subscribe():
+            def gen():
+                q = queue.Queue()
+                subscriptions.append(q)
+                try:
+                    while True:
+                        # message = sub.get_message()
+                        message = q.get()
+                        yield "\ndata:{}\n\n".format(message)
+                        # LOG.info("gevent: {}".format(message))
+                except GeneratorExit:
+                    subscriptions.remove(q)
+
+            return Response(gen(), mimetype="text/event-stream")
 
         # check balance
         @app.route('/balance')
@@ -209,6 +239,3 @@ app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 CORS(app)
 with app.app_context():
     run_app(current_app)
-
-# if __name__ == "__main__":
-#     app.run(threaded=False, debug=True)

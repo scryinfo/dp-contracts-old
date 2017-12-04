@@ -36,8 +36,7 @@ try:
 except Exception as ex:
     LOG.error("cannot connect to ipfs: {}".format(ex))
     sys.exit(-1)
-finally:
-    LOG.info("connected to IPFS: {}".format(ipfs.id()['ID']))
+LOG.info("connected to IPFS: {}".format(ipfs.id()['ID']))
 
 
 class TransactionFailed(Exception):
@@ -53,6 +52,8 @@ def check_txn(chain, txid):
     LOG.info("receipt: {}".format(receipt))
     # post BZ : status is 1 for success
     if receipt.status == '0x1':
+        return receipt
+    if receipt.status == 1:
         return receipt
     # 0 for fail with REVERT (for THROW gasused == gas)
     txinfo = chain.web3.eth.getTransaction(txid)
@@ -95,8 +96,7 @@ def run_app(app):
         except (ConnectionRefusedError, FileNotFoundError) as e:
             LOG.error("Cannot connect to geth: {}".format(e))
             sys.exit(-1)
-        finally:
-            LOG.info("geth accounts: {}".format(accounts))
+        LOG.info("geth accounts: {}".format(accounts))
 
         token, _ = chain.provider.get_or_deploy_contract(
             'ScryToken',

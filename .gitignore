@@ -2,9 +2,11 @@ __pycache__/
 .cache
 .vscode
 chains/scrychain/chain_data/geth/
+chains/p/chain_data/
 logs
 registrar.json
 build
 node_modules
 yarn*
 venv
+*.pyc

@@ -1,0 +1,92 @@
+{
+  "name": "test",
+  "engine": {
+    "instantSeal": null
+  },
+  "params": {
+    "gasLimitBoundDivisor": "0x0400",
+    "accountStartNonce": "0x0",
+    "maximumExtraDataSize": "0x20",
+    "minGasLimit": "0x1388",
+    "networkID": "0x11",
+    "eip140Transition": "0x0",
+    "eip211Transition": "0x0",
+    "eip214Transition": "0x0",
+    "eip155Transition": "0x0",
+    "eip658Transition": "0x0"
+  },
+  "genesis": {
+    "seal": {
+      "generic": "0x0"
+    },
+    "difficulty": "0x20000",
+    "author": "0x0000000000000000000000000000000000000000",
+    "timestamp": "0x00",
+    "parentHash":
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "extraData": "0x",
+    "gasLimit": "0x5B8D80"
+  },
+  "accounts": {
+    "0x0000000000000000000000000000000000000001": {
+      "balance": "1",
+      "builtin": {
+        "name": "ecrecover",
+        "pricing": {
+          "linear": {
+            "base": 3000,
+            "word": 0
+          }
+        }
+      }
+    },
+    "0x0000000000000000000000000000000000000002": {
+      "balance": "1",
+      "builtin": {
+        "name": "sha256",
+        "pricing": {
+          "linear": {
+            "base": 60,
+            "word": 12
+          }
+        }
+      }
+    },
+    "0x0000000000000000000000000000000000000003": {
+      "balance": "1",
+      "builtin": {
+        "name": "ripemd160",
+        "pricing": {
+          "linear": {
+            "base": 600,
+            "word": 120
+          }
+        }
+      }
+    },
+    "0x0000000000000000000000000000000000000004": {
+      "balance": "1",
+      "builtin": {
+        "name": "identity",
+        "pricing": {
+          "linear": {
+            "base": 15,
+            "word": 3
+          }
+        }
+      }
+    },
+    "0x84de23c456c5a9cbd377a35ad3b0d9360191f42f": {
+      "balance": "100000000000000000000000000"
+    },
+    "0xa77082957d1345f19d0a05050f49f5a76e31a055": {
+      "balance": "100000000000000000000000000"
+    },
+    "0xb484d10180d7893bad4825299b09b66bb6929ea9": {
+      "balance": "100000000000000000000000000"
+    },
+    "0xd372eab3c4e20442431652123bbaa8c4d9700313": {
+      "balance": "100000000000000000000000000"
+    }
+  }
+}

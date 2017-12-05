@@ -72,7 +72,7 @@ def run_app(app):
         resp.status_code = error.status_code
         return resp
 
-    with Project().get_chain('scrychain') as chain:
+    with Project().get_chain('parity') as chain:
         def on_transfer(args):
             notify(args)
             # LOG.info("EVENT transfer: {}".format(args))

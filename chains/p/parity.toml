@@ -1,0 +1,43 @@
+[parity]
+base_path = "chains/p/chain_data"
+chain = "chains/p/parity.json"
+db_path = "chains/p/chain_data/db"
+keys_path = "chains/p/keys"
+[ui]
+force = true
+disable = false
+port = 8180
+interface = "all"
+path = "signer"
+[rpc]
+interface = "all"
+apis = ["all"]
+hosts = ["all"]
+[websockets]
+disable = false
+port = 8546
+origins = ["all"]
+interface = "all"
+apis = ["all"]
+hosts = ["all"]
+[ipc]
+apis = ["all"]
+path = "chains/p/chain_data/parity.ipc"
+[dapps]
+disable = false
+path = "dapps"
+[secretstore]
+disable = true
+path = "secretstore"
+[ipfs]
+interface = "all"
+hosts = ["all"]
+[mining]
+reseal_min_period = 0
+min_gas_price = 0
+[footprint]
+tracing = "on"
+pruning = "archive"
+[misc]
+logging = "info"
+log_file = "chains/p/chain_data/parity.log"

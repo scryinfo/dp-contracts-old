@@ -1,8 +1,3 @@
-[parity]
-base_path = "chains/p/chain_data"
-chain = "chains/p/parity.json"
-db_path = "chains/p/chain_data/db"
-keys_path = "chains/p/keys"
 [ui]
 force = true
 disable = false
@@ -22,7 +17,6 @@ apis = ["all"]
 hosts = ["all"]
 [ipc]
 apis = ["all"]
-path = "chains/p/chain_data/parity.ipc"
 [dapps]
 disable = false
 path = "dapps"
@@ -40,4 +34,3 @@ tracing = "on"
 pruning = "archive"
 [misc]
 logging = "info"
-log_file = "chains/p/chain_data/parity.log"

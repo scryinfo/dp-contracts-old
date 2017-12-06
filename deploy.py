@@ -11,7 +11,7 @@ with Project().get_chain('parity') as chain:
 
     token, _ = chain.provider.get_or_deploy_contract(
         'ScryToken',
-        deploy_args=[1000],
+        deploy_args=[1000000],
         deploy_transaction={'from': owner})
     print("token: {}".format(token.address))
     contract, _ = chain.provider.get_or_deploy_contract(

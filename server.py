@@ -100,7 +100,7 @@ def run_app(app):
 
         token, _ = chain.provider.get_or_deploy_contract(
             'ScryToken',
-            deploy_args=[1000],
+            deploy_args=[1000000],
             deploy_transaction={'from': owner})
         LOG.info("token: {}".format(token.address))
 
@@ -237,8 +237,8 @@ def run_app(app):
 
 
 app = Flask(__name__)
-# 1M file upload limit
-app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+# 1G file upload limit
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 # allow all domains on all routes
 CORS(app)
 with app.app_context():

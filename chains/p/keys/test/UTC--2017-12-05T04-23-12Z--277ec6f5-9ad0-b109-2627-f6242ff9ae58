@@ -1,1 +1,21 @@
-{"id":"277ec6f5-9ad0-b109-2627-f6242ff9ae58","version":3,"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"cf2d97c224311817c5aa36306e6e41c3"},"ciphertext":"fd0758784e11f1c616029c602612f260c60574514790b9f5da2642c3ba643adc","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"d870ef511e72dd3776fd224e25471ebeb6693a469f9d98a3088940198fa428fd"},"mac":"cafe7d16061bcfbe480b25ea42ff26c7d4f6fe47b62d22c0678182c79fc2091c"},"address":"84de23c456c5a9cbd377a35ad3b0d9360191f42f","name":"","meta":"{}"}
+{
+  "id": "277ec6f5-9ad0-b109-2627-f6242ff9ae58",
+  "version": 3,
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": { "iv": "cf2d97c224311817c5aa36306e6e41c3" },
+    "ciphertext":
+      "fd0758784e11f1c616029c602612f260c60574514790b9f5da2642c3ba643adc",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 10240,
+      "dklen": 32,
+      "prf": "hmac-sha256",
+      "salt": "d870ef511e72dd3776fd224e25471ebeb6693a469f9d98a3088940198fa428fd"
+    },
+    "mac": "cafe7d16061bcfbe480b25ea42ff26c7d4f6fe47b62d22c0678182c79fc2091c"
+  },
+  "address": "84de23c456c5a9cbd377a35ad3b0d9360191f42f",
+  "name": "owner",
+  "meta": "{\"description\":\"\",\"passwordHint\":\"\",\"tags\":[]}"
+}

@@ -85,19 +85,21 @@ def run_app(app):
             notify(args)
             # LOG.info("EVENT settlement: {}".format(args))
 
+        provider = chain.web3.providers[0]
+        if not provider.isConnected():
+            LOG.error("Cannot connect to Ethereum")
+            sys.exit(-1)
+
         # accounts need to be unlocked
         accounts = {}
-        try:
-            (owner, buyer, seller, verifier) = chain.web3.eth.accounts[:4]
-            accounts['owner'] = owner
-            accounts['buyer'] = buyer
-            accounts['seller'] = seller
-            accounts['verifier'] = verifier
-        except (ConnectionRefusedError, FileNotFoundError) as e:
-            LOG.error("Cannot connect to geth: {}".format(e))
-            sys.exit(-1)
-        LOG.info("geth accounts: {}".format(accounts))
+        acc = provider.make_request("parity_allAccountsInfo", params=[])
+        for address, value in acc["result"].items():
+            name = value["name"]
+            LOG.info("acc: {}:{}".format(address, name))
+            accounts[name] = address
 
+        owner = accounts['owner']
+        # assert owner in keybase
         token, _ = chain.provider.get_or_deploy_contract(
             'ScryToken',
             deploy_args=[1000000],
@@ -111,7 +113,6 @@ def run_app(app):
             deploy_args=[token.address],
             deploy_transaction={'from': owner})
         LOG.info("contract: {}".format(contract.address))
-        accounts['contract'] = contract.address
 
         contract.on('ChannelCreated', {}, on_channel)
         contract.on('ChannelSettled', {}, on_settle)
@@ -133,6 +134,11 @@ def run_app(app):
 
             return Response(gen(), mimetype="text/event-stream")
 
+        @app.route('/members')
+        def members():
+            response = jsonify(list(accounts.keys()))
+            return response
+
         # check balance
         @app.route('/balance')
         def balance():
@@ -149,11 +155,14 @@ def run_app(app):
 
             txid = token.transact({"from": owner}).transfer(account, amount)
             check_txn(chain, txid)
-            return jsonify({'balance': token.call().balanceOf(buyer)})
+            return jsonify({'balance': token.call().balanceOf(account)})
 
         # create channel to seller
         @app.route('/buyer/channel')
         def channel():
+            buyer = accounts[request.args.get('buyer', 'buyer')]
+            seller = accounts[request.args.get('seller', 'seller')]
+
             amount = int(request.args.get('amount', 100))
             txid = token.transact({"from": buyer}).transfer(
                 contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
@@ -161,9 +170,12 @@ def run_app(app):
             receipt = check_txn(chain, txid)
             return jsonify({'create_block': receipt['blockNumber']})
 
-        # authorize string
+        # authorize: generate balance_sig
         @app.route('/buyer/authorize')
         def authorize():
+            buyer = accounts[request.args.get('buyer', 'buyer')]
+            seller = accounts[request.args.get('seller', 'seller')]
+
             amount = int(request.args.get('amount', 100))
             create_block = int(request.args.get('create_block'))
             msg = contract.call().getBalanceMessage(seller, create_block, amount)
@@ -173,6 +185,9 @@ def run_app(app):
         # verification string
         @app.route('/verifier/sign')
         def verify():
+            verifier = accounts[request.args.get('verifier', 'verifier')]
+            seller = accounts[request.args.get('seller', 'seller')]
+
             cid = request.args.get('CID')
             # verifier does its thing
             verification = contract.call().getVerifyMessage(seller, cid)
@@ -202,6 +217,9 @@ def run_app(app):
 
         @app.route("/seller/verify_balance")
         def verify_balance():
+            buyer = accounts[request.args.get('buyer', 'buyer')]
+            seller = accounts[request.args.get('seller', 'seller')]
+
             amount = int(request.args.get('amount', 100))
             balance_sig = request.args.get('balance_sig')
             create_block = int(request.args.get('create_block'))
@@ -219,6 +237,10 @@ def run_app(app):
 
         @app.route('/seller/close')
         def close():
+            buyer = accounts[request.args.get('buyer', 'buyer')]
+            seller = accounts[request.args.get('seller', 'seller')]
+            verifier = accounts[request.args.get('verifier', 'verifier')]
+
             amount = int(request.args.get('amount', 100))
             balance_sig = request.args.get('balance_sig')
             verify_sig = request.args.get('verification_sig')

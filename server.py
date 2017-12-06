@@ -210,10 +210,11 @@ def run_app(app):
             proof = contract.call().verifyBalanceProof(
                 seller, create_block, amount, binascii.unhexlify(balance_sig))
             LOG.info("proof: {}".format(proof))
-            if(proof.lower() == buyer):
+            if(proof.lower() == buyer.lower()):
                 response = jsonify({'verification': 'OK'})
             else:
                 response = jsonify({'verification': "!!"})
+                response.status_code = 400
             return response
 
         @app.route('/seller/close')

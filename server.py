@@ -15,14 +15,6 @@ if __name__ == '__main__':
     from gevent import monkey
     monkey.patch_all()
 
-subscriptions = []
-
-
-def notify(ev):
-    for sub in subscriptions[:]:
-        sub.put(ev)
-
-
 LOG = logging.getLogger('app')
 LOG.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
@@ -61,6 +53,14 @@ def check_txn(chain, txid):
     raise TransactionFailed(txinfo['gas'], receipt['gasUsed'])
 
 
+def replace(items, into, lookup):
+    for item in items:  # sender
+        if item in into:  # sender is in args
+            addr = into[item].lower()  # sender address in lower
+            if addr in lookup:
+                into[item] = lookup[addr]
+
+
 def run_app(app):
 
     @app.errorhandler(TransactionFailed)
@@ -73,6 +73,13 @@ def run_app(app):
         return resp
 
     with Project().get_chain('parity') as chain:
+        # list of gevent Queues
+        subscriptions = []
+
+        def notify(ev):
+            for sub in subscriptions[:]:
+                sub.put(ev)
+
         def on_transfer(args):
             notify(args)
             # LOG.info("EVENT transfer: {}".format(args))
@@ -91,12 +98,16 @@ def run_app(app):
             sys.exit(-1)
 
         # accounts need to be unlocked
+
+        # names => addresses
         accounts = {}
         acc = provider.make_request("parity_allAccountsInfo", params=[])
         for address, value in acc["result"].items():
             name = value["name"]
             LOG.info("acc: {}:{}".format(address, name))
             accounts[name] = address
+        # addresses => names
+        addresses = {v: k for k, v in accounts.items()}
 
         owner = accounts['owner']
         # assert owner in keybase
@@ -125,10 +136,16 @@ def run_app(app):
                 subscriptions.append(q)
                 try:
                     while True:
-                        # message = sub.get_message()
-                        message = q.get()
-                        yield "data:{}\n\n".format(message)
-                        # LOG.info("gevent: {}".format(message))
+                        msg = q.get()
+                        _args = msg['args']
+                        replace(['sender', 'receiver', 'verifier', 'from', 'to'],
+                                _args, addresses)
+
+                        yield "data:{}\n\n".format({
+                            'event': msg['event'],
+                            'args': _args,
+                            'block': msg['blockNumber']
+                        })
                 except GeneratorExit:
                     subscriptions.remove(q)
 

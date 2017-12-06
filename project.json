@@ -34,7 +34,7 @@
         "provider": {
           "class": "web3.providers.ipc.IPCProvider",
           "settings": {
-            "ipc_path": "chains/p/chain_data/parity.ipc"
+            "ipc_path": "chains/p/chain_data/jsonrpc.ipc"
           }
         }
       },

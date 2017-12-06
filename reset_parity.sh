@@ -1,3 +1,3 @@
-rm -rf "~/Library/Application\ Support/io.parity.ethereum/chains/test/"
+rm -rf ./chains/p/chain_data
 rm registrar.json
 ./chains/p/run_chain.sh

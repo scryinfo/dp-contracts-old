@@ -3,6 +3,7 @@ __pycache__/
 .vscode
 chains/scrychain/chain_data/geth/
 chains/p/chain_data/
+chains/p/keys/test/dapps_history.json
 logs
 registrar.json
 build

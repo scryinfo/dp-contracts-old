@@ -1,6 +1,7 @@
 import binascii
 import sys
 import logging
+import simplejson as json
 from flask import Flask, request, jsonify, current_app, make_response, abort, Response
 from flask.logging import PROD_LOG_FORMAT
 from flask_cors import CORS
@@ -125,6 +126,10 @@ def run_app(app):
             deploy_transaction={'from': owner})
         LOG.info("contract: {}".format(contract.address))
 
+        # contract address needs to be visible to events
+        addresses[contract.address] = 'contract'
+        LOG.info("addresses: {}".format(addresses))
+
         contract.on('ChannelCreated', {}, on_channel)
         contract.on('ChannelSettled', {}, on_settle)
 
@@ -141,11 +146,11 @@ def run_app(app):
                         replace(['sender', 'receiver', 'verifier', 'from', 'to'],
                                 _args, addresses)
 
-                        yield "data:{}\n\n".format({
+                        yield "data:{}\n\n".format(json.dumps({
                             'event': msg['event'],
                             'args': _args,
                             'block': msg['blockNumber']
-                        })
+                        }))
                 except GeneratorExit:
                     subscriptions.remove(q)
 

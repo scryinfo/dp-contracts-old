@@ -23,16 +23,16 @@ contract Scry {
      */
 
     event ChannelCreated(
-        address indexed _sender,
-        address indexed _receiver,
-        uint192 _deposit);
+        address indexed sender,
+        address indexed receiver,
+        uint192 deposit);
 
     event ChannelSettled(
-        address indexed _sender,
-        address indexed _receiver,
-        address indexed _verifier,
-        uint32 _open_block_number,
-        uint192 _balance);
+        address indexed sender,
+        address indexed receiver,
+        address indexed verifier,
+        uint32 open_block_number,
+        uint192 balance);
 
     /*
      * Constructor

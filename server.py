@@ -55,11 +55,13 @@ def check_txn(chain, txid):
 
 
 def replace(items, into, lookup):
+    out = into.copy()
     for item in items:  # sender
         if item in into:  # sender is in args
             addr = into[item].lower()  # sender address in lower
             if addr in lookup:
-                into[item] = lookup[addr]
+                out[item] = lookup[addr]
+    return out
 
 
 def run_app(app):
@@ -105,7 +107,7 @@ def run_app(app):
         acc = provider.make_request("parity_allAccountsInfo", params=[])
         for address, value in acc["result"].items():
             name = value["name"]
-            LOG.info("acc: {}:{}".format(address, name))
+            LOG.info("{}:{}".format(name, address))
             accounts[name] = address
         # addresses => names
         addresses = {v: k for k, v in accounts.items()}
@@ -128,7 +130,6 @@ def run_app(app):
 
         # contract address needs to be visible to events
         addresses[contract.address] = 'contract'
-        LOG.info("addresses: {}".format(addresses))
 
         contract.on('ChannelCreated', {}, on_channel)
         contract.on('ChannelSettled', {}, on_settle)
@@ -142,13 +143,12 @@ def run_app(app):
                 try:
                     while True:
                         msg = q.get()
-                        _args = msg['args']
-                        replace(['sender', 'receiver', 'verifier', 'from', 'to'],
-                                _args, addresses)
+                        out = replace(['sender', 'receiver', 'verifier', 'from', 'to'],
+                                      msg['args'], addresses)
 
                         yield "data:{}\n\n".format(json.dumps({
                             'event': msg['event'],
-                            'args': _args,
+                            'args': out,
                             'block': msg['blockNumber']
                         }))
                 except GeneratorExit:
@@ -171,9 +171,10 @@ def run_app(app):
         # fund participant
         @app.route('/fund')
         def fund():
-            to = request.args.get('account')
-            account = accounts[to]
+            account = accounts[request.args.get('account')]
             amount = int(request.args.get('amount'))
+            LOG.info("fund amount:{} from:{} to:{}".format(
+                amount, owner, account))
 
             txid = token.transact({"from": owner}).transfer(account, amount)
             check_txn(chain, txid)
@@ -184,11 +185,14 @@ def run_app(app):
         def channel():
             buyer = accounts[request.args.get('buyer', 'buyer')]
             seller = accounts[request.args.get('seller', 'seller')]
-
             amount = int(request.args.get('amount', 100))
+            LOG.info("channel amount:{} from:{} to:{}".format(
+                amount, buyer, seller))
+
+            # open a channel: send tokens to contract
             txid = token.transact({"from": buyer}).transfer(
                 contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
-            LOG.info("channel amount {} txid: {}".format(amount, txid))
+            LOG.info("channel txid: {}".format(txid))
             receipt = check_txn(chain, txid)
             return jsonify({'create_block': receipt['blockNumber']})
 

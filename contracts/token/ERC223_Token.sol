@@ -125,7 +125,7 @@ contract ERC223Token is ERC223, SafeMath {
   
   //function that is called when transaction target is a contract
   function transferToContract(address _to, uint _value, bytes _data) private returns (bool success) {
-    if (balanceOf(msg.sender) < _value) throw;
+    require(balanceOf(msg.sender) >= _value);
     balances[msg.sender] = safeSub(balanceOf(msg.sender), _value);
     balances[_to] = safeAdd(balanceOf(_to), _value);
     ContractReceiver receiver = ContractReceiver(_to);

@@ -59,6 +59,9 @@ contract Scry {
         // Make sure we trust the token
         require(msg.sender == token_address);
         
+        uint192 deposit = uint192(_deposit);
+        require(deposit == _deposit);
+
         // Ev(_sender, uint192(_deposit), _data);
         uint length = _data.length;
 
@@ -293,10 +296,10 @@ contract Scry {
     {
         //GasCost('settleChannel start', block.gaslimit, msg.gas);
         bytes32 key = getKey(_sender, _receiver, _open_block_number);
-        Channel channel = channels[key];
+        Channel memory channel = channels[key];
 
         // TODO delete this if we don't include open_block_number in the Channel struct
-        require(channel.open_block_number != 0);
+        require(channel.open_block_number > 0);
         require(_balance <= channel.deposit);
 
         // send minimum of _balance and deposit to receiver

@@ -32,9 +32,9 @@
       },
       "web3": {
         "provider": {
-          "class": "web3.providers.ipc.IPCProvider",
+          "class": "web3.providers.rpc.HTTPProvider",
           "settings": {
-            "ipc_path": "chains/p/chain_data/jsonrpc.ipc"
+            "endpoint_uri": "http://127.0.0.1:8545"
           }
         }
       },

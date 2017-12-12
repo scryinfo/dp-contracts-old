@@ -10,7 +10,10 @@ from populus import Project
 from populus.utils.wait import wait_for_transaction_receipt
 import ipfsapi
 
-from gevent import queue
+import time
+import uwsgi
+
+from gevent import queue, sleep
 
 if __name__ == '__main__':
     from gevent import monkey
@@ -284,12 +287,24 @@ def run_app(app):
             receipt = check_txn(chain, txid)
             return jsonify({'close_block': receipt['blockNumber']})
 
+        @app.route('/socket')
+        def socket():
+            env = request.environ
+            uwsgi.websocket_handshake(
+                env['HTTP_SEC_WEBSOCKET_KEY'], env.get('HTTP_ORIGIN', ''))
+            while True:
+                msg = uwsgi.websocket_recv()
+                js = json.loads(msg)
+                js['time'] = time.time()
+                uwsgi.websocket_send(json.dumps(js))
+
 
 app = Flask(__name__)
 # 1G file upload limit
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 # allow all domains on all routes
 CORS(app)
+
 with app.app_context():
     run_app(current_app)
 

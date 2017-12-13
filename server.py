@@ -3,12 +3,11 @@ import logging
 from flask import Flask, current_app
 from flask.logging import PROD_LOG_FORMAT
 from flask_cors import CORS
-
 from populus import Project
-
 import ipfsapi
-
 from handler import run_app
+
+from model import db
 
 if __name__ == '__main__':
     from gevent import monkey
@@ -34,6 +33,18 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 # allow all domains on all routes
 CORS(app)
+
+
+@app.before_request
+def before_request():
+    db.connect()
+
+
+@app.after_request
+def after_request(response):
+    db.close()
+    return response
+
 
 with app.app_context():
     with Project().get_chain('parity') as chain:

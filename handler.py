@@ -4,14 +4,16 @@ import sys
 import time
 
 from flask import request, jsonify, make_response, abort, Response
-
 import simplejson as json
-
 from populus.utils.wait import wait_for_transaction_receipt
-
 from gevent import queue
 
+from playhouse.shortcuts import model_to_dict
+from model import Listing, create_tables
+
 LOG = logging.getLogger('app')
+
+create_tables()
 
 
 class TransactionFailed(Exception):
@@ -174,6 +176,11 @@ def run_app(app, chain, ipfs):
         receipt = check_txn(chain, txid)
         return jsonify({'create_block': receipt['blockNumber']})
 
+    @app.route('/buyer/items')
+    def sale_items():
+        res = [model_to_dict(listing) for listing in Listing.select()]
+        return jsonify(res)
+
      # authorize: generate balance_sig
     @app.route('/buyer/authorize')
     def authorize():
@@ -201,12 +208,12 @@ def run_app(app, chain, ipfs):
     @app.route('/seller/upload', methods=['POST'])
     def upload_file():
         seller = request.args.get('account')
-        upload = {}
+        listing = None
         if len(request.files) == 0:
             cid = request.args.get('CID')
             size = request.args.get('size')
             name = request.args.get('name')
-            upload = {'CID': cid, "size": size, "seller": seller, "name": name}
+            listing = Listing(cid=cid, size=size, seller=seller, name=name)
         else:
             if 'data' in request.files:
                 f = request.files['data']
@@ -215,10 +222,14 @@ def run_app(app, chain, ipfs):
                 cid = added['Hash']
                 size = added['Size']
                 name = f.filename
-                upload = {'CID': cid, "size": size,
-                          "seller": seller, "name": name}
-        notify({"event": "Upload", 'args': upload, 'blockNumber': None})
-        return jsonify(upload)
+                listing = Listing(cid=cid, size=size, seller=seller, name=name)
+        listing.save()
+        LOG.info(model_to_dict(listing))
+        notify({"event": "Upload",
+                'args': model_to_dict(listing),
+                'blockNumber': None})
+
+        return jsonify(model_to_dict(listing))
 
     @app.route('/seller/download', methods=['GET'])
     def download_file():

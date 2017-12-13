@@ -8,8 +8,6 @@ from populus import Project
 
 import ipfsapi
 
-import engineio
-
 from handler import run_app
 
 if __name__ == '__main__':
@@ -37,7 +35,6 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 # allow all domains on all routes
 CORS(app)
 
-eio = engineio.Server()
 with app.app_context():
     with Project().get_chain('parity') as chain:
         provider = chain.web3.providers[0]
@@ -45,9 +42,7 @@ with app.app_context():
             LOG.error("Cannot connect to Ethereum")
             sys.exit(-1)
 
-        run_app(current_app, chain, eio, ipfs)
-
-app = engineio.Middleware(eio, app)
+        run_app(current_app, chain, ipfs)
 
 if __name__ == '__main__':
     from gevent.wsgi import WSGIServer

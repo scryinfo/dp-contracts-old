@@ -11,8 +11,6 @@ from populus.utils.wait import wait_for_transaction_receipt
 
 from gevent import queue
 
-from handler_ws import WsDispatcher
-
 LOG = logging.getLogger('app')
 
 
@@ -48,7 +46,7 @@ def replace(items, into, lookup):
     return out
 
 
-def run_app(app, chain, eio, ipfs):
+def run_app(app, chain, ipfs):
 
     @app.errorhandler(TransactionFailed)
     def transaction_failed(error):
@@ -144,7 +142,7 @@ def run_app(app, chain, eio, ipfs):
     # check balance
     @app.route('/balance')
     def balance():
-        account = accounts[request.args.get('account')]
+        account = request.args.get('account')
         response = jsonify({'balance': token.call().balanceOf(account)})
         return response
 
@@ -163,8 +161,8 @@ def run_app(app, chain, eio, ipfs):
      # create channel to seller
     @app.route('/buyer/channel')
     def channel():
-        buyer = accounts[request.args.get('buyer', 'buyer')]
-        seller = accounts[request.args.get('seller', 'seller')]
+        buyer = request.args.get('buyer')
+        seller = request.args.get('seller')
         amount = int(request.args.get('amount', 100))
         LOG.info("channel amount:{} from:{} to:{}".format(
             amount, buyer, seller))
@@ -263,15 +261,3 @@ def run_app(app, chain, eio, ipfs):
                                                          binascii.unhexlify(verify_sig))
         receipt = check_txn(chain, txid)
         return jsonify({'close_block': receipt['blockNumber']})
-
-    ws = WsDispatcher(chain, token, contract, owner)
-
-    @eio.on('message')
-    def socket(sid, data):
-        ret = ws.dispatch(data)
-        ret['time'] = time.time()
-        eio.send(sid, ret)
-
-    @eio.on('connect')
-    def connect(sid, environ):
-        print("connect ", sid)

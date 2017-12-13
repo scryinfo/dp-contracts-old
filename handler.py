@@ -200,10 +200,25 @@ def run_app(app, chain, ipfs):
 
     @app.route('/seller/upload', methods=['POST'])
     def upload_file():
-        f = request.files['data']
-        added = ipfs.add(f)
-        LOG.info("ipfs upload: {}".format(added))
-        return jsonify({'CID': added['Hash'], "size": added['Size']})
+        seller = request.args.get('account')
+        upload = {}
+        if len(request.files) == 0:
+            cid = request.args.get('CID')
+            size = request.args.get('size')
+            name = request.args.get('name')
+            upload = {'CID': cid, "size": size, "seller": seller, "name": name}
+        else:
+            if 'data' in request.files:
+                f = request.files['data']
+                added = ipfs.add(f)
+                LOG.info("ipfs upload: {}".format(added))
+                cid = added['Hash']
+                size = added['Size']
+                name = f.filename
+                upload = {'CID': cid, "size": size,
+                          "seller": seller, "name": name}
+        notify({"event": "Upload", 'args': upload, 'blockNumber': None})
+        return jsonify(upload)
 
     @app.route('/seller/download', methods=['GET'])
     def download_file():

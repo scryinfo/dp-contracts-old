@@ -5,37 +5,15 @@ import time
 
 from flask import request, jsonify, make_response, abort, Response
 import simplejson as json
-from populus.utils.wait import wait_for_transaction_receipt
 from gevent import queue
 
 from playhouse.shortcuts import model_to_dict
-from model import Listing, create_tables
+from peewee import IntegrityError
+
+from model import Listing
+from txn import check_txn, TransactionFailed
 
 LOG = logging.getLogger('app')
-
-create_tables()
-
-
-class TransactionFailed(Exception):
-    status_code = 400
-
-    def __init__(self, gas, gasUsed):
-        Exception.__init__(self)
-
-
-def check_txn(chain, txid):
-    LOG.info("waiting for: {}".format(txid))
-    receipt = wait_for_transaction_receipt(chain.web3, txid)
-    LOG.info("receipt: {}".format(receipt))
-    # post BZ : status is 1 for success
-    if receipt.status == '0x1':
-        return receipt
-    if receipt.status == 1:
-        return receipt
-    # 0 for fail with REVERT (for THROW gasused == gas)
-    txinfo = chain.web3.eth.getTransaction(txid)
-    LOG.info("txn: {}".format(txinfo))
-    raise TransactionFailed(txinfo['gas'], receipt['gasUsed'])
 
 
 def replace(items, into, lookup):
@@ -57,6 +35,15 @@ def run_app(app, chain, ipfs):
         }
         resp = jsonify(message)
         resp.status_code = error.status_code
+        return resp
+
+    @app.errorhandler(IntegrityError)
+    def integrity_error(error):
+        message = {
+            'message': 'Save Failed',
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
         return resp
 
     # list of gevent Queues
@@ -157,7 +144,7 @@ def run_app(app, chain, ipfs):
             amount, owner, account))
 
         txid = token.transact({"from": owner}).transfer(account, amount)
-        check_txn(chain, txid)
+        check_txn(chain.web3, txid)
         return jsonify({'balance': token.call().balanceOf(account)})
 
      # create channel to seller
@@ -173,12 +160,16 @@ def run_app(app, chain, ipfs):
         txid = token.transact({"from": buyer}).transfer(
             contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
         LOG.info("channel txid: {}".format(txid))
-        receipt = check_txn(chain, txid)
+        receipt = check_txn(chain.web3, txid)
         return jsonify({'create_block': receipt['blockNumber']})
 
     @app.route('/buyer/items')
     def sale_items():
-        res = [model_to_dict(listing) for listing in Listing.select()]
+        query = Listing.select()
+        owner = request.args.get("owner", None)
+        if owner:
+            query = query.where(Listing.owner == owner)
+        res = [model_to_dict(listing) for listing in query]
         return jsonify(res)
 
      # authorize: generate balance_sig
@@ -208,12 +199,14 @@ def run_app(app, chain, ipfs):
     @app.route('/seller/upload', methods=['POST'])
     def upload_file():
         seller = request.args.get('account')
+        price = request.args.get('price')
         listing = None
         if len(request.files) == 0:
             cid = request.args.get('CID')
             size = request.args.get('size')
             name = request.args.get('name')
-            listing = Listing(cid=cid, size=size, seller=seller, name=name)
+            listing = Listing(cid=cid, size=size,
+                              owner=seller, name=name, price=price)
         else:
             if 'data' in request.files:
                 f = request.files['data']
@@ -222,14 +215,21 @@ def run_app(app, chain, ipfs):
                 cid = added['Hash']
                 size = added['Size']
                 name = f.filename
-                listing = Listing(cid=cid, size=size, seller=seller, name=name)
-        listing.save()
-        LOG.info(model_to_dict(listing))
+                listing = Listing(cid=cid, size=size,
+                                  owner=seller, name=name, price=price)
+
+        m2dict = model_to_dict(listing)
+        try:
+            listing.save()
+        except IntegrityError as e:
+            LOG.info("save conflict: {}: {}".format(m2dict, e))
+            raise
+
         notify({"event": "Upload",
-                'args': model_to_dict(listing),
+                'args': m2dict,
                 'blockNumber': None})
 
-        return jsonify(model_to_dict(listing))
+        return jsonify(m2dict)
 
     @app.route('/seller/download', methods=['GET'])
     def download_file():
@@ -285,5 +285,5 @@ def run_app(app, chain, ipfs):
                                                          verifier,
                                                          cid,
                                                          binascii.unhexlify(verify_sig))
-        receipt = check_txn(chain, txid)
+        receipt = check_txn(chain.web3, txid)
         return jsonify({'close_block': receipt['blockNumber']})

@@ -18,9 +18,22 @@ class Listing(Model):
         )
 
 
+class Trader(Model):
+    name = CharField()
+    account = CharField()
+    role = CharField()
+
+    class Meta:
+        database = db
+        indexes = (
+            # create a unique constraint
+            (('name', 'role'), True),
+        )
+
+
 def create_tables():
     db.connect()
-    db.create_tables([Listing], True)
+    db.create_tables([Listing, Trader], True)
 
 
 create_tables()

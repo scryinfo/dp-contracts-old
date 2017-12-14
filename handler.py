@@ -40,7 +40,7 @@ def run_app(app, chain, ipfs):
     @app.errorhandler(IntegrityError)
     def integrity_error(error):
         message = {
-            'message': 'Save Failed',
+            'message': 'Save Error: {}'.format(error),
         }
         resp = jsonify(message)
         resp.status_code = 400
@@ -218,13 +218,13 @@ def run_app(app, chain, ipfs):
                 listing = Listing(cid=cid, size=size,
                                   owner=seller, name=name, price=price)
 
-        m2dict = model_to_dict(listing)
         try:
             listing.save()
         except IntegrityError as e:
-            LOG.info("save conflict: {}: {}".format(m2dict, e))
+            LOG.info("save conflict: {}: {}".format(model_to_dict(listing), e))
             raise
 
+        m2dict = model_to_dict(listing)
         notify({"event": "Upload",
                 'args': m2dict,
                 'blockNumber': None})

@@ -1,13 +1,15 @@
 from populus import Project
+
 import sys
 
 with Project().get_chain('parity') as chain:
-
+    web3 = chain.web3
     try:
-        owner = chain.web3.eth.accounts[0]
+        owner = web3.eth.accounts[0]
     except (ConnectionRefusedError, FileNotFoundError) as e:
         print("Cannot connect to chain: {}".format(e))
         sys.exit(-1)
+    print('owner: {}'.format(owner))
 
     token, _ = chain.provider.get_or_deploy_contract(
         'ScryToken',

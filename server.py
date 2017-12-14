@@ -5,8 +5,9 @@ from flask.logging import PROD_LOG_FORMAT
 from flask_cors import CORS
 from populus import Project
 import ipfsapi
-from handler import run_app
+import simplejson as json
 
+from handler import run_app
 from model import db
 
 if __name__ == '__main__':
@@ -46,14 +47,33 @@ def after_request(response):
     return response
 
 
+def load_contract(web3):
+    with open("registrar.json") as reg:
+        registry = json.load(reg)
+        with open("build/contracts.json") as f:
+            abis = json.load(f)
+            for _, ctr in registry['deployments'].items():
+                # token[] = dep[]
+                name = list(ctr)[0]
+                addr = ctr[name]
+                abi = abis[name]['abi']
+                # print(name, addr, abi)
+                ct = web3.eth.contract(address=addr, abi=abi)
+                if name == "ScryToken":
+                    token = ct
+                if name == "Scry":
+                    contract = ct
+        return token, contract
+
+
 with app.app_context():
     with Project().get_chain('parity') as chain:
-        provider = chain.web3.providers[0]
-        if not provider.isConnected():
+        if not chain.web3.providers[0].isConnected():
             LOG.error("Cannot connect to Ethereum")
             sys.exit(-1)
 
-        run_app(current_app, chain, ipfs)
+        token, contract = load_contract(chain.web3)
+        run_app(current_app, chain.web3, token, contract, ipfs)
 
 if __name__ == '__main__':
     from gevent.wsgi import WSGIServer

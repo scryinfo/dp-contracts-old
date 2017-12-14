@@ -26,7 +26,7 @@ def replace(items, into, lookup):
     return out
 
 
-def run_app(app, chain, ipfs):
+def run_app(app, web3, token, contract, ipfs):
 
     @app.errorhandler(TransactionFailed)
     def transaction_failed(error):
@@ -65,8 +65,11 @@ def run_app(app, chain, ipfs):
         notify(args)
         # LOG.info("EVENT settlement: {}".format(args))
 
-    provider = chain.web3.providers[0]
+    token.on('Transfer', {}, on_transfer)
+    contract.on('ChannelCreated', {}, on_channel)
+    contract.on('ChannelSettled', {}, on_settle)
 
+    provider = web3.providers[0]
     # accounts need to be unlocked
 
     # names => addresses
@@ -80,26 +83,10 @@ def run_app(app, chain, ipfs):
     addresses = {v: k for k, v in accounts.items()}
 
     owner = accounts['owner']
-    # assert owner in keybase
-    token, _ = chain.provider.get_or_deploy_contract(
-        'ScryToken',
-        deploy_args=[1000000],
-        deploy_transaction={'from': owner})
-    LOG.info("token: {}".format(token.address))
-
-    token.on('Transfer', {}, on_transfer)
-
-    contract, _ = chain.provider.get_or_deploy_contract(
-        'Scry',
-        deploy_args=[token.address],
-        deploy_transaction={'from': owner})
-    LOG.info("contract: {}".format(contract.address))
+    # TODO - assert owner is keybase
 
     # contract address needs to be visible to events
     addresses[contract.address] = 'contract'
-
-    contract.on('ChannelCreated', {}, on_channel)
-    contract.on('ChannelSettled', {}, on_settle)
 
     # subscribe
     @app.route("/subscribe")
@@ -155,7 +142,7 @@ def run_app(app, chain, ipfs):
             amount, owner, account))
 
         txid = token.transact({"from": owner}).transfer(account, amount)
-        check_txn(chain.web3, txid)
+        check_txn(web3, txid)
         return jsonify({'balance': token.call().balanceOf(account)})
 
      # create channel to seller
@@ -171,7 +158,7 @@ def run_app(app, chain, ipfs):
         txid = token.transact({"from": buyer}).transfer(
             contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
         LOG.info("channel txid: {}".format(txid))
-        receipt = check_txn(chain.web3, txid)
+        receipt = check_txn(web3, txid)
         return jsonify({'create_block': receipt['blockNumber']})
 
      # authorize: generate balance_sig
@@ -184,7 +171,7 @@ def run_app(app, chain, ipfs):
         create_block = int(request.args.get('create_block'))
         msg = contract.call().getBalanceMessage(seller, create_block, amount)
         return jsonify(
-            {'balance_sig': chain.web3.eth.sign(buyer, msg)[2:]})
+            {'balance_sig': web3.eth.sign(buyer, msg)[2:]})
 
      # verification string
     @app.route('/verifier/sign')
@@ -196,7 +183,7 @@ def run_app(app, chain, ipfs):
         # verifier does its thing
         verification = contract.call().getVerifyMessage(seller, cid)
         return jsonify(
-            {'verification_sig': chain.web3.eth.sign(verifier, verification)[2:]})
+            {'verification_sig': web3.eth.sign(verifier, verification)[2:]})
 
     @app.route('/listings')
     def sale_items():
@@ -296,5 +283,5 @@ def run_app(app, chain, ipfs):
                                                          verifier,
                                                          cid,
                                                          binascii.unhexlify(verify_sig))
-        receipt = check_txn(chain.web3, txid)
+        receipt = check_txn(web3, txid)
         return jsonify({'close_block': receipt['blockNumber']})

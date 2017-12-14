@@ -48,6 +48,9 @@ def after_request(response):
 
 
 def load_contract(web3):
+    LOG.info("version: {} : {} : {}".format(web3.version.api,
+                                            web3.version.node,
+                                            web3.version.network))
     with open("registrar.json") as reg:
         registry = json.load(reg)
         with open("build/contracts.json") as f:
@@ -73,6 +76,9 @@ with app.app_context():
             sys.exit(-1)
 
         token, contract = load_contract(chain.web3)
+        LOG.info('token:{}'.format(token.address))
+        LOG.info('contract:{}'.format(contract.address))
+
         run_app(current_app, chain.web3, token, contract, ipfs)
 
 if __name__ == '__main__':

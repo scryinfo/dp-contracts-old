@@ -10,6 +10,8 @@ from gevent import queue
 from playhouse.shortcuts import model_to_dict
 from peewee import IntegrityError
 
+from eth_utils import to_checksum_address
+
 from model import Listing, Trader
 from txn import check_txn, TransactionFailed
 
@@ -82,7 +84,7 @@ def run_app(app, web3, token, contract, ipfs):
     # addresses => names
     addresses = {v: k for k, v in accounts.items()}
 
-    owner = accounts['owner']
+    owner = to_checksum_address(accounts['owner'])
     # TODO - assert owner is keybase
 
     # contract address needs to be visible to events
@@ -129,14 +131,14 @@ def run_app(app, web3, token, contract, ipfs):
     # check balance
     @app.route('/balance')
     def balance():
-        account = request.args.get('account')
+        account = to_checksum_address(request.args.get('account'))
         response = jsonify({'balance': token.call().balanceOf(account)})
         return response
 
     # fund participant
     @app.route('/fund')
     def fund():
-        account = request.args.get('account')
+        account = to_checksum_address(request.args.get('account'))
         amount = int(request.args.get('amount'))
         LOG.info("fund amount:{} from:{} to:{}".format(
             amount, owner, account))
@@ -148,8 +150,8 @@ def run_app(app, web3, token, contract, ipfs):
      # create channel to seller
     @app.route('/buyer/channel')
     def channel():
-        buyer = request.args.get('buyer')
-        seller = request.args.get('seller')
+        buyer = to_checksum_address(request.args.get('buyer'))
+        seller = to_checksum_address(request.args.get('seller'))
         amount = int(request.args.get('amount', 100))
         LOG.info("channel amount:{} from:{} to:{}".format(
             amount, buyer, seller))
@@ -185,13 +187,21 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(
             {'verification_sig': web3.eth.sign(verifier, verification)[2:]})
 
+    def add_user(listing):
+        model = model_to_dict(listing)
+        try:
+            trader = Trader.get(Trader.account == model['owner'])
+            model['username'] = trader.name
+        finally:
+            return model
+
     @app.route('/listings')
     def sale_items():
         query = Listing.select()
         owner = request.args.get("owner", None)
         if owner:
             query = query.where(Listing.owner == owner)
-        res = [model_to_dict(listing) for listing in query]
+        res = [add_user(listing) for listing in query]
         return jsonify(res)
 
     @app.route('/seller/upload', methods=['POST'])
@@ -222,7 +232,7 @@ def run_app(app, web3, token, contract, ipfs):
             LOG.info("save conflict: {}: {}".format(model_to_dict(listing), e))
             raise
 
-        m2dict = model_to_dict(listing)
+        m2dict = add_user(listing)
         notify({"event": "Upload",
                 'args': m2dict,
                 'blockNumber': None})

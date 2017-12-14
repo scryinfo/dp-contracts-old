@@ -25,6 +25,10 @@ class Trader(Model):
 
     class Meta:
         database = db
+        indexes = (
+            # create a unique constraint
+            (('name', 'account'), True),
+        )
 
 
 def create_tables():

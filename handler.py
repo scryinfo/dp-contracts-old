@@ -163,15 +163,6 @@ def run_app(app, chain, ipfs):
         receipt = check_txn(chain.web3, txid)
         return jsonify({'create_block': receipt['blockNumber']})
 
-    @app.route('/buyer/items')
-    def sale_items():
-        query = Listing.select()
-        owner = request.args.get("owner", None)
-        if owner:
-            query = query.where(Listing.owner == owner)
-        res = [model_to_dict(listing) for listing in query]
-        return jsonify(res)
-
      # authorize: generate balance_sig
     @app.route('/buyer/authorize')
     def authorize():
@@ -195,6 +186,15 @@ def run_app(app, chain, ipfs):
         verification = contract.call().getVerifyMessage(seller, cid)
         return jsonify(
             {'verification_sig': chain.web3.eth.sign(verifier, verification)[2:]})
+
+    @app.route('/listings')
+    def sale_items():
+        query = Listing.select()
+        owner = request.args.get("owner", None)
+        if owner:
+            query = query.where(Listing.owner == owner)
+        res = [model_to_dict(listing) for listing in query]
+        return jsonify(res)
 
     @app.route('/seller/upload', methods=['POST'])
     def upload_file():

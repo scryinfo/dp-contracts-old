@@ -1,7 +1,6 @@
 import binascii
 import logging
 import sys
-import time
 
 from flask import request, jsonify, make_response, abort, Response
 import simplejson as json
@@ -16,6 +15,15 @@ from ethereum.transactions import Transaction
 
 from model import Listing, Trader
 from txn import check_txn, TransactionFailed
+from ops import (
+    account_balance,
+    open_channel,
+    close_channel,
+    verify_balance_sig,
+    buyer_authorization,
+    verifier_authorization,
+    BalanceVerificationError
+)
 
 LOG = logging.getLogger('app')
 
@@ -50,6 +58,15 @@ def run_app(app, web3, token, contract, ipfs):
         resp.status_code = 400
         return resp
 
+    @app.errorhandler(BalanceVerificationError)
+    def balance_error(error):
+        message = {
+            'verification': '{}'.format(error),
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+        return resp
+
     # list of gevent Queues
     subscriptions = []
 
@@ -69,9 +86,9 @@ def run_app(app, web3, token, contract, ipfs):
         notify(args)
         # LOG.info("EVENT settlement: {}".format(args))
 
-    # token.on('Transfer', {}, on_transfer)
-    # contract.on('ChannelCreated', {}, on_channel)
-    # contract.on('ChannelSettled', {}, on_settle)
+    token.on('Transfer', {}, on_transfer)
+    contract.on('ChannelCreated', {}, on_channel)
+    contract.on('ChannelSettled', {}, on_settle)
 
     provider = web3.providers[0]
     # accounts need to be unlocked
@@ -114,13 +131,21 @@ def run_app(app, web3, token, contract, ipfs):
 
         return Response(gen(), mimetype="text/event-stream")
 
+    def trader_details(trader):
+        return {**model_to_dict(trader), **account_balance(web3, trader.account, token)}
+
     @app.route('/trader', methods=['GET',  'POST'])
     def members():
         if request.method == 'GET':
-            res = [model_to_dict(trader) for trader in Trader.select()]
-            return jsonify(res)
+            return jsonify([trader_details(trader) for trader in Trader.select()])
 
+        # load json
         data = json.loads(request.data)
+        ret = provider.make_request("parity_newAccountFromSecret", params=[
+                                    "0x" + data['password'], "asdf"])
+        if ret['result'] != data['account']:
+            raise Exception("saved account is not the same")
+
         trader = Trader(
             name=data['username'], account=data['account'], password=data['password'])
         try:
@@ -134,8 +159,7 @@ def run_app(app, web3, token, contract, ipfs):
     @app.route('/balance')
     def balance():
         account = to_checksum_address(request.args.get('account'))
-        response = jsonify({'balance': token.call().balanceOf(account)})
-        return response
+        return jsonify(account_balance(web3, account, token))
 
     # fund participant
     @app.route('/fund')
@@ -145,31 +169,48 @@ def run_app(app, web3, token, contract, ipfs):
         LOG.info("fund amount:{} from:{} to:{}".format(
             amount, owner, account))
 
+        # send token
         txid = token.transact({"from": owner}).transfer(account, amount)
         check_txn(web3, txid)
-        return jsonify({'balance': token.call().balanceOf(account)})
 
-    @app.route('/buyer/fake')
-    def fake():
-        buyer = to_checksum_address(accounts['buyer'])
-        # seller = to_checksum_address(accounts['seller'])
-        seller = to_checksum_address(request.args.get('seller'))
-        amount = int(request.args.get('amount'))
-        LOG.info("channel amount:{} from:{} to:{}".format(
-            amount, buyer, seller))
-        # open a channel: send tokens to contract
-        nonce = web3.eth.getTransactionCount(buyer)
-        txid = token.transact({
-            "from": buyer,
-            "nonce": nonce
-        }).transfer(
-            contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
-        receipt = check_txn(web3, txid)
-        return jsonify({'create_block': receipt['blockNumber']})
+        # send eth too
+        txid2 = web3.eth.sendTransaction(
+            {'to': account, 'value': 10, 'from': owner})
+        check_txn(web3, txid2)
 
-     # create channel to seller
+        return jsonify(account_balance(web3, account, token))
+
+    @app.route('/purchase', methods=['POST'])
+    def purchase():
+        data = json.loads(request.data)
+        print(data)
+        buyer = to_checksum_address(data['buyer'])
+        listing_id = data['id']
+        listing = Listing.get(Listing.id == listing_id)
+        ch = open_channel(web3, listing.price, buyer,
+                          listing.owner, token, contract)
+
+        auth_buyer = buyer_authorization(
+            web3, buyer, listing.owner, ch['create_block'], listing.price, contract)
+        auth_verifier = verifier_authorization(
+            web3, listing.owner, accounts['verifier'], listing.cid, contract)
+        ret = close_channel(web3, buyer, listing.owner,
+                            accounts['verifier'], ch['create_block'],
+                            listing.cid, listing.price,
+                            auth_buyer['balance_sig'], auth_verifier['verification_sig'], contract)
+        return jsonify(ret)
+
+    # create channel to seller
     @app.route('/buyer/channel')
     def channel():
+        buyer = to_checksum_address(request.args.get('buyer'))
+        seller = to_checksum_address(request.args.get('seller'))
+        amount = int(request.args.get('amount'))
+        return jsonify(open_channel(web3, amount, buyer, seller, token, contract))
+
+     # create channel to seller
+    @app.route('/buyer/channel2')
+    def channel2():
         buyer = request.args.get('buyer')
         seller = request.args.get('seller')
         amount = int(request.args.get('amount', 100))
@@ -223,28 +264,22 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify({'create_block': receipt['blockNumber']})
 
      # authorize: generate balance_sig
+
     @app.route('/buyer/authorize')
     def authorize():
-        buyer = accounts[request.args.get('buyer', 'buyer')]
-        seller = accounts[request.args.get('seller', 'seller')]
-
-        amount = int(request.args.get('amount', 100))
-        create_block = int(request.args.get('create_block'))
-        msg = contract.call().getBalanceMessage(seller, create_block, amount)
-        return jsonify(
-            {'balance_sig': web3.eth.sign(buyer, msg)[2:]})
+        buyer = request.args.get('buyer')
+        seller = request.args.get('seller')
+        amount = request.args.get('amount')
+        create_block = request.args.get('create_block')
+        return jsonify(buyer_authorization(web3, buyer, seller, create_block, amount, contract))
 
      # verification string
     @app.route('/verifier/sign')
     def verify():
-        verifier = accounts[request.args.get('verifier', 'verifier')]
-        seller = accounts[request.args.get('seller', 'seller')]
-
+        verifier = request.args.get('verifier')
+        seller = request.args.get('seller')
         cid = request.args.get('CID')
-        # verifier does its thing
-        verification = contract.call().getVerifyMessage(seller, cid)
-        return jsonify(
-            {'verification_sig': web3.eth.sign(verifier, verification)[2:]})
+        return jsonify(verifier_authorization(web3, seller, verifier, cid, contract))
 
     def add_user(listing):
         model = model_to_dict(listing)
@@ -314,29 +349,21 @@ def run_app(app, web3, token, contract, ipfs):
 
     @app.route("/seller/verify_balance")
     def verify_balance():
-        buyer = accounts[request.args.get('buyer', 'buyer')]
-        seller = accounts[request.args.get('seller', 'seller')]
+        buyer = request.args.get('buyer')
+        seller = request.args.get('seller')
 
         amount = int(request.args.get('amount', 100))
         balance_sig = request.args.get('balance_sig')
         create_block = int(request.args.get('create_block'))
-        msg = contract.call().getBalanceMessage(seller, create_block, amount)
-        LOG.info("msg: {}".format(msg))
-        proof = contract.call().verifyBalanceProof(
-            seller, create_block, amount, binascii.unhexlify(balance_sig))
-        LOG.info("proof: {}".format(proof))
-        if(proof.lower() == buyer.lower()):
-            response = jsonify({'verification': 'OK'})
-        else:
-            response = jsonify({'verification': "!!"})
-            response.status_code = 400
-        return response
+        verify_balance_sig(buyer, seller, create_block,
+                           amount, balance_sig, contract)
+        return jsonify({'verification': 'OK'})
 
     @app.route('/seller/close')
     def close():
-        buyer = accounts[request.args.get('buyer', 'buyer')]
-        seller = accounts[request.args.get('seller', 'seller')]
-        verifier = accounts[request.args.get('verifier', 'verifier')]
+        buyer = request.args.get('buyer')
+        seller = request.args.get('seller')
+        verifier = request.args.get('verifier')
 
         amount = int(request.args.get('amount', 100))
         balance_sig = request.args.get('balance_sig')
@@ -344,13 +371,4 @@ def run_app(app, web3, token, contract, ipfs):
         cid = request.args.get('CID')
         create_block = int(request.args.get('create_block'))
 
-        txid = contract.transact({"from": seller}).close(buyer,
-                                                         create_block,
-                                                         amount,
-                                                         binascii.unhexlify(
-                                                             balance_sig),
-                                                         verifier,
-                                                         cid,
-                                                         binascii.unhexlify(verify_sig))
-        receipt = check_txn(web3, txid)
-        return jsonify({'close_block': receipt['blockNumber']})
+        return jsonify(close_channel(web3, buyer, seller, verifier, create_block, cid, amount, balance_sig, verify_sig, contract))

@@ -13,7 +13,7 @@ class TransactionFailed(Exception):
 
 
 def check_txn(web3, txid):
-    LOG.info("waiting for: {}".format(txid.hex()))
+    LOG.info("waiting for: {}".format(txid))
     receipt = wait_for_transaction_receipt(web3, txid)
     LOG.info("receipt: {}".format(receipt))
     # post BZ : status is 1 for success

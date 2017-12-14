@@ -19,16 +19,12 @@ class Listing(Model):
 
 
 class Trader(Model):
-    name = CharField()
+    name = CharField(unique=True)
     account = CharField()
-    role = CharField()
+    password = CharField()
 
     class Meta:
         database = db
-        indexes = (
-            # create a unique constraint
-            (('name', 'role'), True),
-        )
 
 
 def create_tables():

@@ -10,7 +10,7 @@ from gevent import queue
 from playhouse.shortcuts import model_to_dict
 from peewee import IntegrityError
 
-from model import Listing
+from model import Listing, Trader
 from txn import check_txn, TransactionFailed
 
 LOG = logging.getLogger('app')
@@ -123,10 +123,21 @@ def run_app(app, chain, ipfs):
 
         return Response(gen(), mimetype="text/event-stream")
 
-    @app.route('/members')
+    @app.route('/trader', methods=['GET',  'POST'])
     def members():
-        response = jsonify(list(accounts.keys()))
-        return response
+        if request.method == 'GET':
+            res = [model_to_dict(trader) for trader in Trader.select()]
+            return jsonify(res)
+
+        data = json.loads(request.data)
+        trader = Trader(
+            name=data['username'], account=data['account'], password=data['password'])
+        try:
+            trader.save()
+        except IntegrityError as e:
+            LOG.info("save conflict: {}: {}".format(model_to_dict(trader), e))
+            raise
+        return jsonify(model_to_dict(trader))
 
     # check balance
     @app.route('/balance')

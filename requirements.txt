@@ -1,5 +1,4 @@
-populus==2.0.1
-web3==3.16.4
+populus==2.2.0
 Flask==0.12.2
 ipfsapi==0.4.2.post1
 flask-cors==3.0.3

@@ -11,6 +11,8 @@ from playhouse.shortcuts import model_to_dict
 from peewee import IntegrityError
 
 from eth_utils import to_checksum_address
+import rlp
+from ethereum.transactions import Transaction
 
 from model import Listing, Trader
 from txn import check_txn, TransactionFailed
@@ -67,9 +69,9 @@ def run_app(app, web3, token, contract, ipfs):
         notify(args)
         # LOG.info("EVENT settlement: {}".format(args))
 
-    token.on('Transfer', {}, on_transfer)
-    contract.on('ChannelCreated', {}, on_channel)
-    contract.on('ChannelSettled', {}, on_settle)
+    # token.on('Transfer', {}, on_transfer)
+    # contract.on('ChannelCreated', {}, on_channel)
+    # contract.on('ChannelSettled', {}, on_settle)
 
     provider = web3.providers[0]
     # accounts need to be unlocked
@@ -147,19 +149,76 @@ def run_app(app, web3, token, contract, ipfs):
         check_txn(web3, txid)
         return jsonify({'balance': token.call().balanceOf(account)})
 
+    @app.route('/buyer/fake')
+    def fake():
+        buyer = to_checksum_address(accounts['buyer'])
+        # seller = to_checksum_address(accounts['seller'])
+        seller = to_checksum_address(request.args.get('seller'))
+        amount = int(request.args.get('amount'))
+        LOG.info("channel amount:{} from:{} to:{}".format(
+            amount, buyer, seller))
+        # open a channel: send tokens to contract
+        nonce = web3.eth.getTransactionCount(buyer)
+        txid = token.transact({
+            "from": buyer,
+            "nonce": nonce
+        }).transfer(
+            contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
+        receipt = check_txn(web3, txid)
+        return jsonify({'create_block': receipt['blockNumber']})
+
      # create channel to seller
     @app.route('/buyer/channel')
     def channel():
-        buyer = to_checksum_address(request.args.get('buyer'))
-        seller = to_checksum_address(request.args.get('seller'))
+        buyer = request.args.get('buyer')
+        seller = request.args.get('seller')
         amount = int(request.args.get('amount', 100))
         LOG.info("channel amount:{} from:{} to:{}".format(
             amount, buyer, seller))
 
-        # open a channel: send tokens to contract
-        txid = token.transact({"from": buyer}).transfer(
-            contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
-        LOG.info("channel txid: {}".format(txid))
+        # find buyer, seller
+        buyer = Trader.get(Trader.account == buyer)
+        seller = Trader.get(Trader.account == seller)
+
+        buyer_account = to_checksum_address(buyer.account)
+        seller_account = to_checksum_address(seller.account)
+
+        # web3.eth.sendTransaction(
+        #     {'to': buyer_account, 'value': 100000, 'from': owner})
+        LOG.info('buyer balance: eth:{} token:{}'.format(
+            web3.eth.getBalance(buyer_account), token.call().balanceOf(buyer_account)))
+
+        nonce = web3.eth.getTransactionCount(buyer_account)
+        LOG.info("channel nonce: {}".format(nonce))
+
+        # open a channel: buyer sends txn to token
+        # token transfers tokens to contract for seller
+        txn = token.buildTransaction({
+            "from": buyer_account,
+            "nonce": nonce
+        }).transfer(
+            contract.address, amount, bytes.fromhex(seller_account[2:].zfill(40)))
+        LOG.info("channel prepared: {}".format(txn))
+        # remove item
+        # txn = dict((i, txn[i]) for i in txn if i != 'chainId')
+        # gas = web3.eth.estimateGas(txn)
+        # LOG.info("channel gas: {}".format(gas))
+        # gas = token.estimateGas().transfer(
+        #     contract.address, amount, bytes.fromhex(seller_account[2:].zfill(40)))
+        # LOG.info("channel gas: {}".format(gas))
+
+        txn = Transaction(nonce=txn['nonce'],
+                          gasprice=txn['gasPrice'],
+                          #   startgas=gas,
+                          #   startgas=txn['gas'] + 100000,
+                          startgas=int('0x2a0f8', 16),  # 0x154f0 + 100000,
+                          to=txn['to'],
+                          data=txn['data'],
+                          value=0)
+        txn.sign(buyer.password)
+        encoded = web3.toHex(rlp.encode(txn))
+        txid = web3.eth.sendRawTransaction(encoded)
+        # LOG.info("channel txid: {}".format(txid.hex()))
         receipt = check_txn(web3, txid)
         return jsonify({'create_block': receipt['blockNumber']})
 

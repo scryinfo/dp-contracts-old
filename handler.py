@@ -146,6 +146,10 @@ def run_app(app, web3, token, contract, ipfs):
         if ret['result'] != data['account']:
             raise Exception("saved account is not the same")
 
+        txid2 = web3.eth.sendTransaction(
+            {'to': data['account'], 'value': 10, 'from': owner})
+        check_txn(web3, txid2)
+
         trader = Trader(
             name=data['username'], account=data['account'], password=data['password'])
         try:

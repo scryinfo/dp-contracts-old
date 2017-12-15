@@ -53,7 +53,7 @@ def close_channel(web3, buyer, seller, verifier, create_block, cid, amount, bala
              cid,
              binascii.unhexlify(verify_sig))
     receipt = check_txn(web3, txid)
-    return {'close_block': receipt['blockNumber']}
+    return {'close_block': receipt['blockNumber'], 'cid': cid}
 
 
 def buyer_authorization(web3, buyer, seller, create_block, amount, contract):

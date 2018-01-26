@@ -71,6 +71,8 @@ def buyer_authorization(web3, buyer, seller, create_block, amount, contract):
 def verifier_authorization(web3, seller, verifier, cid, contract):
     LOG.info("verifier_authorization:{} seller:{} cid:{}".format(
         verifier, seller, cid))
+    # unlock acct
+    web3.personal.unlockAccount(verifier, "asdf")
     verification = contract.call().getVerifyMessage(seller, cid)
     return {'verification_sig': web3.eth.sign(verifier, verification)[2:]}
 

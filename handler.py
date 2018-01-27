@@ -206,7 +206,7 @@ def run_app(app, web3, token, contract, ipfs):
                             listing.cid, listing.price,
                             auth_buyer['balance_sig'], auth_verifier['verification_sig'], contract)
 
-        purchased = PurchaseOrder(buyer=buyer, listing=listing, 
+        purchased = PurchaseOrder(buyer=buyer, listing=listing, create_block = ch['create_block'],
                                 needs_verification=False, needs_closure=False, 
                                 buyer_auth=auth_buyer['balance_sig'], 
                                 verifier_auth=auth_verifier['verification_sig'])

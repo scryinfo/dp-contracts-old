@@ -1,8 +1,11 @@
 import binascii
 import logging
 import sys
+import copy
 
 from flask import request, jsonify, make_response, abort, Response
+from flask.json import JSONEncoder
+
 import simplejson as json
 from gevent import queue
 
@@ -28,6 +31,21 @@ from ops import (
 
 LOG = logging.getLogger('app')
 
+class ConstraintError(Exception):
+    status_code = 400
+
+# class CustomJSONEncoder(JSONEncoder):
+    # def default(self, obj):
+    #     print('jere')
+    #     if isinstance(obj, Listing):
+    #         obj = model_to_dict(obj)
+    #         del obj['cid']
+    #     return JSONEncoder.default(self, obj)
+
+# todo :
+# filter fields : cid, passwords etc
+# configure % reward
+# allow deleteing items
 
 def replace(items, into, lookup):
     out = into.copy()
@@ -40,6 +58,8 @@ def replace(items, into, lookup):
 
 
 def run_app(app, web3, token, contract, ipfs):
+
+    # app.json_encoder = CustomJSONEncoder
 
     @app.errorhandler(TransactionFailed)
     def transaction_failed(error):
@@ -63,6 +83,15 @@ def run_app(app, web3, token, contract, ipfs):
     def balance_error(error):
         message = {
             'verification': '{}'.format(error),
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+        return resp
+
+    @app.errorhandler(ConstraintError)
+    def constraint_error(error):
+        message = {
+            'error': '{}'.format(error),
         }
         resp = jsonify(message)
         resp.status_code = 400
@@ -253,23 +282,30 @@ def run_app(app, web3, token, contract, ipfs):
         verifier_id = data['verifier']
         verifier = Trader.get(Trader.account == verifier_id)
 
+        # make sure verifier, buyer & seller are different
+        if (buyer_id == verifier_id):
+            raise ConstraintError("Buyer must not be same as Verifier")
+        if (listing.owner == verifier_id):
+            raise ConstraintError("Seller must not be same as Verifier")
+        if (buyer_id == listing.owner):
+            raise ConstraintError("Buyer must not be same as Seller")
+
         owner_cs = to_checksum_address(listing.owner.account)
         buyer_cs = to_checksum_address(buyer_id) # checksum address for eth
         ch = open_channel(web3, listing.price, buyer_cs, owner_cs, token, contract)
         auth_buyer = buyer_authorization(web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
-
+        
         po = PurchaseOrder(buyer = buyer, listing = listing, 
                             verifier=verifier, create_block = ch['create_block'],
                             needs_verification = True, 
                             needs_closure = True, 
-                            buyer_auth = auth_buyer['balance_sig'], verifier_auth = '')
-        pod = model_to_dict(po)
+                            buyer_auth = auth_buyer['balance_sig'])
         try:
             po.save()
         except IntegrityError as e:
-            LOG.info("save conflict: {}: {}".format(pod, e))
+            LOG.info("save conflict: {}: {}".format(model_to_dict(po), e))
             raise
-        return jsonify(pod)
+        return jsonify(model_to_dict(po))
 
     @app.route('/verifier/sign', methods=['POST'])
     def verify():
@@ -279,6 +315,10 @@ def run_app(app, web3, token, contract, ipfs):
         po = PurchaseOrder.get(PurchaseOrder.id == data['id'])
 
         # TODO: make sure verification is pending
+        if (po.needs_verification is False):
+            raise ConstraintError("Order does not need verification")
+        if (po.needs_closure is False):
+            raise ConstraintError("Order has already Been closed")
 
         owner_cs = to_checksum_address(po.listing.owner.account)
         verifier_cs = to_checksum_address(po.verifier.account)
@@ -287,13 +327,12 @@ def run_app(app, web3, token, contract, ipfs):
         po.verifier_auth = auth_verifier['verification_sig']
         po.needs_verification = False
         po.save()
-        pod = model_to_dict(po)
         notify({
             "event":"ChannelVerified",
-            "args" : {"sender":buyer_id, "receiver": listing.owner.account},
+            "args" : {"sender":po.verifier.account, "receiver": po.listing.owner.account},
             'blockNumber' : po.create_block,
             })
-        return jsonify(pod)
+        return jsonify(model_to_dict(po))
 
     @app.route('/seller/close', methods=['POST'])
     def close():
@@ -308,6 +347,10 @@ def run_app(app, web3, token, contract, ipfs):
         listing = po.listing
 
         # TODO: make sure verification is complete
+        if (po.needs_verification is True):
+            raise ConstraintError("Order needs Verification")
+        if (po.needs_closure is False):
+            raise ConstraintError("Order has already been Closed")
 
         ret = close_channel(web3, buyer_cs, owner_cs,
                             verifier_cs, po.create_block,
@@ -317,13 +360,12 @@ def run_app(app, web3, token, contract, ipfs):
         po.needs_closure = False
 
         po.save()
-        pod = model_to_dict(po)
         notify({
             "event":"ChannelSettled",
-            "args" : {"sender":buyer_id, "receiver": listing.owner.account},
+            "args" : {"sender":po.buyer.account, "receiver": po.listing.owner.account},
             'blockNumber' : po.create_block,
             })
-        return jsonify(pod)
+        return jsonify(model_to_dict(po))
 
     @app.route('/buyer/channel2')
     def channel2():
@@ -396,23 +438,21 @@ def run_app(app, web3, token, contract, ipfs):
             'nonce': 0,
         })
 
-    def add_user(listing):
-        model = model_to_dict(listing)
-        try:
-            trader = Trader.get(Trader.account == model['owner'])
-            model['username'] = trader.name
-        finally:
-            return model
-
     @app.route('/listings', methods=['GET'])
     def sale_items():
         owner = request.args.get("owner", None)
         if owner:
             trader = Trader.get(Trader.account == owner)
-            res = [add_user(listing) for listing in trader.listings]
+            res = []
+            for listing in trader.listings:
+                n_sold = len(listing.sales)
+                listing = model_to_dict(listing)
+                listing['sold'] = n_sold
+                res.append(listing)
+            return jsonify(res)
 
         query = Listing.select()
-        res = [add_user(listing) for listing in query]
+        res = [model_to_dict(listing) for listing in query]
         return jsonify(res)
 
     @app.route('/seller/upload', methods=['POST'])

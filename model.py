@@ -8,7 +8,7 @@ class Trader(Model):
     name = CharField(unique=True)
     account = CharField()
     password = CharField()
-    created_at = TimestampField(utc=true)
+    created_at = TimestampField(utc=True)
 
     class Meta:
         database = db
@@ -24,7 +24,7 @@ class Listing(Model):
     owner = ForeignKeyField(Trader, related_name='listings')
     name = CharField()
     price = DecimalField(constraints=[Check('price > 0')])
-    created_at = TimestampField(utc=true)
+    created_at = TimestampField(utc=True)
 
     class Meta:
         database = db

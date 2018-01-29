@@ -69,7 +69,7 @@ contract Scry {
         // createChannel - receiver address (20 bytes + padding = 32 bytes)
         require(length == 20);
         address receiver = addressFromData(_data);
-        createChannelPrivate(_sender, receiver, deposit);
+        createChannelPrivate(_sender, receiver, deposit, 1 ,1);
     }
 
     /// @dev Function called when receiver wants to close the channel and settle; receiver needs a balance proof to immediately settle
@@ -264,6 +264,8 @@ contract Scry {
     function createChannelPrivate(
         address _sender,
         address _receiver,
+        uint32 _verifier_reward,
+        uint32 _num_verifier,
         uint32 _deposit)
         private
     {
@@ -279,8 +281,8 @@ contract Scry {
         // Store channel information
         channels[key] = Channel({
             deposit: _deposit, 
-            verifier_reward: 1,
-            num_verifier: 1,
+            verifier_reward: _verifier_reward,
+            num_verifier: _num_verifier,
             open_block_number: open_block_number
             });
         //GasCost('createChannel end', block.gaslimit, msg.gas);

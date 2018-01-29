@@ -16,6 +16,7 @@ from ethereum.transactions import Transaction
 from model import Listing, Trader, PurchaseOrder
 from txn import check_txn, TransactionFailed
 from ops import (
+    channel_info,
     account_balance,
     open_channel,
     close_channel,
@@ -463,3 +464,11 @@ def run_app(app, web3, token, contract, ipfs):
         verify_balance_sig(buyer, seller, create_block,
                            amount, balance_sig, contract)
         return jsonify({'verification': 'OK'})
+
+    @app.route("/info/channel", methods=['GET'])
+    def info_channel():
+        po = PurchaseOrder.get(PurchaseOrder.id == request.args.get('id'))
+        buyer = to_checksum_address(po.buyer.account) # checksum address for eth
+        seller = to_checksum_address(po.listing.owner.account)
+        ret = channel_info(contract, buyer, seller, po.create_block)
+        return jsonify(ret)

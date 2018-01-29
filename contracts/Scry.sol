@@ -12,9 +12,10 @@ contract Scry {
 
     mapping (bytes32 => Channel) channels;
 
-    // 28 (deposit) + 4 (block no)
     struct Channel {
-        uint192 deposit; // mAX 2^192 == 2^6 * 2^18
+        uint32 deposit; // mAX 2^32
+        uint32 verifier_reward;
+        uint32 num_verifier;
         uint32 open_block_number; // UNIQUE for participants to prevent replay of messages in later channels
     }
 
@@ -25,14 +26,14 @@ contract Scry {
     event ChannelCreated(
         address indexed sender,
         address indexed receiver,
-        uint192 deposit);
+        uint32 deposit);
 
     event ChannelSettled(
         address indexed sender,
         address indexed receiver,
         address indexed verifier,
         uint32 open_block_number,
-        uint192 balance);
+        uint32 balance);
 
     /*
      * Constructor
@@ -59,16 +60,16 @@ contract Scry {
         // Make sure we trust the token
         require(msg.sender == token_address);
         
-        uint192 deposit = uint192(_deposit);
+        uint32 deposit = uint32(_deposit);
         require(deposit == _deposit);
 
-        // Ev(_sender, uint192(_deposit), _data);
+        // Ev(_sender, uint32(_deposit), _data);
         uint length = _data.length;
 
         // createChannel - receiver address (20 bytes + padding = 32 bytes)
         require(length == 20);
         address receiver = addressFromData(_data);
-        createChannelPrivate(_sender, receiver, uint192(_deposit));
+        createChannelPrivate(_sender, receiver, deposit);
     }
 
     /// @dev Function called when receiver wants to close the channel and settle; receiver needs a balance proof to immediately settle
@@ -78,7 +79,7 @@ contract Scry {
     function close(
         address _buyer,
         uint32 _open_block_number,
-        uint192 _balance,
+        uint32 _balance,
         bytes _balance_msg_sig,
         address _verifier,
         string _cid,
@@ -106,12 +107,12 @@ contract Scry {
         uint32 _open_block_number)
         external
         constant
-        returns (bytes32, uint192)
+        returns (bytes32, uint32, uint32, uint32)
     {
         bytes32 key = getKey(_sender, _receiver, _open_block_number);
         require(channels[key].open_block_number != 0);
 
-        return (key, channels[key].deposit);
+        return (key, channels[key].deposit, channels[key].verifier_reward, channels[key].num_verifier);
     }
 
     /*
@@ -142,7 +143,7 @@ contract Scry {
     function getBalanceMessage(
         address _receiver,
         uint32 _open_block_number,
-        uint192 _balance)
+        uint32 _balance)
         public
         pure
         returns (string)
@@ -178,7 +179,7 @@ contract Scry {
     function verifyBalanceProof(
         address _receiver,
         uint32 _open_block_number,
-        uint192 _balance,
+        uint32 _balance,
         bytes _balance_msg_sig)
         public
         returns (address)
@@ -263,7 +264,7 @@ contract Scry {
     function createChannelPrivate(
         address _sender,
         address _receiver,
-        uint192 _deposit)
+        uint32 _deposit)
         private
     {
         //GasCost('createChannel start', block.gaslimit, msg.gas);
@@ -276,7 +277,12 @@ contract Scry {
         require(channels[key].open_block_number == 0);
 
         // Store channel information
-        channels[key] = Channel({deposit: _deposit, open_block_number: open_block_number});
+        channels[key] = Channel({
+            deposit: _deposit, 
+            verifier_reward: 1,
+            num_verifier: 1,
+            open_block_number: open_block_number
+            });
         //GasCost('createChannel end', block.gaslimit, msg.gas);
         ChannelCreated(_sender, _receiver, _deposit);
     }
@@ -291,22 +297,33 @@ contract Scry {
         address _receiver,
         address _verifier,
         uint32 _open_block_number,
-        uint192 _balance)
+        uint32 _balance)
         private
     {
         //GasCost('settleChannel start', block.gaslimit, msg.gas);
         bytes32 key = getKey(_sender, _receiver, _open_block_number);
         Channel memory channel = channels[key];
 
+        uint32 verifier_rewards = channel.verifier_reward * channel.num_verifier;
+        require(_balance > verifier_rewards);
         // TODO delete this if we don't include open_block_number in the Channel struct
         require(channel.open_block_number > 0);
-        require(_balance <= channel.deposit);
+        require(_balance - verifier_rewards <= channel.deposit);
+        // require(_verifiers.length >= channel.num_verifier);
 
         // send minimum of _balance and deposit to receiver
-        uint send_to_receiver = min(_balance, channel.deposit);
+        uint send_to_receiver = min(_balance - verifier_rewards, channel.deposit);
         if(send_to_receiver > 0) {
             //GasCost('settleChannel', block.gaslimit, msg.gas);
             require(token.transfer(_receiver, send_to_receiver));
+        }
+
+        // send reward to verifiers
+        for(uint i = 0; i < channel.num_verifier; i++){
+            if(channel.verifier_reward > 0) {
+                //GasCost('settleChannel', block.gaslimit, msg.gas);
+                require(token.transfer(_verifier, channel.verifier_reward));
+            }
         }
 
         // send maximum of deposit - balance and 0 to sender
@@ -333,7 +350,7 @@ contract Scry {
     /// @param a First number to compare.
     /// @param b Second number to compare.
     /// @return The maximum between the two provided numbers.
-    function max(uint192 a, uint192 b)
+    function max(uint32 a, uint32 b)
         internal
         constant
         returns (uint)
@@ -346,7 +363,7 @@ contract Scry {
     /// @param a First number to compare.
     /// @param b Second number to compare.
     /// @return The minimum between the two provided numbers.
-    function min(uint192 a, uint192 b)
+    function min(uint32 a, uint32 b)
         internal
         constant
         returns (uint)

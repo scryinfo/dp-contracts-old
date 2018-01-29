@@ -1,5 +1,5 @@
-from peewee import *
 import datetime
+from peewee import *
 
 db = SqliteDatabase('scry.db')
 

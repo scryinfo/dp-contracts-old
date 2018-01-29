@@ -17,6 +17,10 @@ def account_balance(web3, account, token):
     }
 
 
+def channel_info(contract, buyer, seller, open_block):
+    return contract.call().getChannelInfo(buyer, seller, open_block)
+
+
 def open_channel(web3, amount, buyer, seller, token, contract):
     amount = int(amount)
     LOG.info("channel amount:{} from:{} to:{}".format(

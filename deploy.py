@@ -5,7 +5,7 @@ import sys
 with Project().get_chain('parity') as chain:
     web3 = chain.web3
     try:
-        owner = web3.eth.accounts[0]
+        owner = web3.eth.coinbase
     except (ConnectionRefusedError, FileNotFoundError) as e:
         print("Cannot connect to chain: {}".format(e))
         sys.exit(-1)

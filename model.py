@@ -8,6 +8,7 @@ class Trader(Model):
     name = CharField(unique=True)
     account = CharField()
     password = CharField()
+    created_at = TimestampField(utc=true)
 
     class Meta:
         database = db
@@ -23,6 +24,7 @@ class Listing(Model):
     owner = ForeignKeyField(Trader, related_name='listings')
     name = CharField()
     price = DecimalField(constraints=[Check('price > 0')])
+    created_at = TimestampField(utc=true)
 
     class Meta:
         database = db
@@ -41,7 +43,7 @@ class PurchaseOrder(Model):
     needs_closure = BooleanField()
     buyer_auth = CharField()
     verifier_auth = CharField(null=True)
-    created_date = DateTimeField(default=datetime.datetime.now)
+    created_at = TimestampField(utc=True)
 
     class Meta:
         database = db

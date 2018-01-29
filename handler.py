@@ -263,13 +263,13 @@ def run_app(app, web3, token, contract, ipfs):
                             needs_verification = True, 
                             needs_closure = True, 
                             buyer_auth = auth_buyer['balance_sig'], verifier_auth = '')
+        pod = model_to_dict(po)
         try:
             po.save()
         except IntegrityError as e:
-            LOG.info("save conflict: {}: {}".format(
-                model_to_dict(po), e))
+            LOG.info("save conflict: {}: {}".format(pod, e))
             raise
-        return jsonify(model_to_dict(po))
+        return jsonify(pod)
 
     @app.route('/verifier/sign', methods=['POST'])
     def verify():
@@ -287,7 +287,13 @@ def run_app(app, web3, token, contract, ipfs):
         po.verifier_auth = auth_verifier['verification_sig']
         po.needs_verification = False
         po.save()
-        return jsonify(model_to_dict(po))
+        pod = model_to_dict(po)
+        notify({
+            "event":"ChannelVerified",
+            "args" : {"sender":buyer_id, "receiver": listing.owner.account},
+            'blockNumber' : po.create_block,
+            })
+        return jsonify(pod)
 
     @app.route('/seller/close', methods=['POST'])
     def close():
@@ -311,7 +317,13 @@ def run_app(app, web3, token, contract, ipfs):
         po.needs_closure = False
 
         po.save()
-        return jsonify(model_to_dict(po))
+        pod = model_to_dict(po)
+        notify({
+            "event":"ChannelSettled",
+            "args" : {"sender":buyer_id, "receiver": listing.owner.account},
+            'blockNumber' : po.create_block,
+            })
+        return jsonify(pod)
 
     @app.route('/buyer/channel2')
     def channel2():

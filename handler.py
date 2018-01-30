@@ -484,7 +484,7 @@ def run_app(app, web3, token, contract, ipfs):
             LOG.info("save conflict: {}: {}".format(model_to_dict(listing), e))
             raise
 
-        m2dict = add_user(listing)
+        m2dict = model_to_dict(listing)
         notify({"event": "Upload",
                 'args': m2dict,
                 'blockNumber': None})

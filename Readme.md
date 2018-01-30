@@ -47,6 +47,12 @@ Compile contract:
 populus compile
 ```
 
+Deploy contracts:
+
+```
+python deploy.py
+```
+
 Start server:
 
 ```

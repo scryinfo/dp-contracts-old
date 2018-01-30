@@ -29,6 +29,12 @@ Install python dependencies using pip:
 pip install -r requirements.txt
 ```
 
+In case of errors install dev libraries:
+
+```
+sudo apt-get install python3-dev
+```
+
 Start server:
 
 ```

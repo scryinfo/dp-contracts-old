@@ -7,7 +7,6 @@ db = SqliteDatabase('scry.db')
 class Trader(Model):
     name = CharField(unique=True)
     account = CharField()
-    password = CharField()
     created_at = TimestampField(utc=True)
 
     class Meta:

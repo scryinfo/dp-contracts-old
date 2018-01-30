@@ -4,7 +4,6 @@ import sys
 import copy
 
 from flask import request, jsonify, make_response, abort, Response
-from flask.json import JSONEncoder
 
 import simplejson as json
 from gevent import queue
@@ -34,14 +33,6 @@ LOG = logging.getLogger('app')
 class ConstraintError(Exception):
     status_code = 400
 
-# class CustomJSONEncoder(JSONEncoder):
-    # def default(self, obj):
-    #     print('jere')
-    #     if isinstance(obj, Listing):
-    #         obj = model_to_dict(obj)
-    #         del obj['cid']
-    #     return JSONEncoder.default(self, obj)
-
 # todo :
 # filter fields : cid, passwords etc
 # configure % reward
@@ -56,10 +47,7 @@ def replace(items, into, lookup):
                 out[item] = lookup[addr]
     return out
 
-
 def run_app(app, web3, token, contract, ipfs):
-
-    # app.json_encoder = CustomJSONEncoder
 
     @app.errorhandler(TransactionFailed)
     def transaction_failed(error):
@@ -72,9 +60,11 @@ def run_app(app, web3, token, contract, ipfs):
 
     @app.errorhandler(IntegrityError)
     def integrity_error(error):
+        msg = 'Save Error: {}'.format(error)
         message = {
-            'message': 'Save Error: {}'.format(error),
+            'message': msg,
         }
+        LOG.info(msg)
         resp = jsonify(message)
         resp.status_code = 400
         return resp
@@ -184,13 +174,8 @@ def run_app(app, web3, token, contract, ipfs):
             {'from': owner, 'to': data['account'], 'value': 10})
         check_txn(web3, txid2)
 
-        trader = Trader(
-            name=data['username'], account=data['account'], password=data['password'])
-        try:
-            trader.save()
-        except IntegrityError as e:
-            LOG.info("save conflict: {}: {}".format(model_to_dict(trader), e))
-            raise
+        trader = Trader(name=data['username'], account=data['account'])
+        trader.save()
         return jsonify(model_to_dict(trader))
 
     # check balance
@@ -213,6 +198,20 @@ def run_app(app, web3, token, contract, ipfs):
 
         return jsonify(account_balance(web3, account, token))
 
+    def check_purchase(buyer, verifier_id, listing):
+        # make sure verifier, buyer & seller are different
+        if (buyer.account == verifier_id):
+            raise ConstraintError("Buyer must not be same as Verifier")
+        if (listing.owner == verifier_id):
+            raise ConstraintError("Seller must not be same as Verifier")
+        if (buyer.account == listing.owner):
+            raise ConstraintError("Buyer must not be same as Seller")
+
+        # make sure buyer has enough tokens to cover listing price
+        token_balance = account_balance(web3, buyer.account, token)
+        if (listing.price > token_balance['balance']):
+            raise ConstraintError("Buyer does not have enough tokens")
+
     @app.route('/purchase', methods=['POST'])
     def purchase():
         data = json.loads(request.data)
@@ -222,7 +221,9 @@ def run_app(app, web3, token, contract, ipfs):
         buyer = Trader.get(Trader.account == buyer_id)
         listing_id = data['id']
         listing = Listing.get(Listing.id == listing_id)
-        
+
+        check_purchase(buyer, accounts['verifier'], listing)
+
         owner_cs = to_checksum_address(listing.owner.account)
         buyer_cs = to_checksum_address(buyer_id) # checksum address for eth
         ch = open_channel(web3, listing.price, buyer_cs, owner_cs, token, contract)
@@ -240,12 +241,7 @@ def run_app(app, web3, token, contract, ipfs):
                                 needs_verification=False, needs_closure=False, 
                                 buyer_auth=auth_buyer['balance_sig'], 
                                 verifier_auth=auth_verifier['verification_sig'])
-        try:
-            purchased.save()
-        except IntegrityError as e:
-            LOG.info("save conflict: {}: {}".format(
-                model_to_dict(purchased), e))
-            raise
+        purchased.save()
         return jsonify(ret)
 
     @app.route('/history', methods=['GET'])
@@ -282,13 +278,7 @@ def run_app(app, web3, token, contract, ipfs):
         verifier_id = data['verifier']
         verifier = Trader.get(Trader.account == verifier_id)
 
-        # make sure verifier, buyer & seller are different
-        if (buyer_id == verifier_id):
-            raise ConstraintError("Buyer must not be same as Verifier")
-        if (listing.owner == verifier_id):
-            raise ConstraintError("Seller must not be same as Verifier")
-        if (buyer_id == listing.owner):
-            raise ConstraintError("Buyer must not be same as Seller")
+        check_purchase(buyer, verifier_id, listing)
 
         owner_cs = to_checksum_address(listing.owner.account)
         buyer_cs = to_checksum_address(buyer_id) # checksum address for eth
@@ -300,11 +290,7 @@ def run_app(app, web3, token, contract, ipfs):
                             needs_verification = True, 
                             needs_closure = True, 
                             buyer_auth = auth_buyer['balance_sig'])
-        try:
-            po.save()
-        except IntegrityError as e:
-            LOG.info("save conflict: {}: {}".format(model_to_dict(po), e))
-            raise
+        po.save()
         return jsonify(model_to_dict(po))
 
     @app.route('/verifier/sign', methods=['POST'])
@@ -412,7 +398,7 @@ def run_app(app, web3, token, contract, ipfs):
                           to=txn['to'],
                           data=txn['data'],
                           value=0)
-        txn.sign(buyer.password)
+        # txn.sign(buyer.password)
         encoded = web3.toHex(rlp.encode(txn))
         txid = web3.eth.sendRawTransaction(encoded)
         # LOG.info("channel txid: {}".format(txid.hex()))
@@ -478,11 +464,7 @@ def run_app(app, web3, token, contract, ipfs):
                 listing = Listing(cid=cid, size=size,
                                   owner=seller, name=name, price=price)
 
-        try:
-            listing.save()
-        except IntegrityError as e:
-            LOG.info("save conflict: {}: {}".format(model_to_dict(listing), e))
-            raise
+        listing.save()
 
         m2dict = model_to_dict(listing)
         notify({"event": "Upload",

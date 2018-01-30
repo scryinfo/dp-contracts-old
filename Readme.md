@@ -38,7 +38,11 @@ sudo apt-get install python3-dev
 Start server:
 
 ```
-FLASK_APP=server.py flask run
+[OLD] FLASK_APP=server.py flask run
+```
+
+```
+THREADING_BACKEND=gevent uwsgi --ini wsgi.ini
 ```
 
 # Running tests

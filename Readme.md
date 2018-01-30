@@ -41,6 +41,12 @@ Run ethereum:
 ./reset_parity.sh
 ```
 
+Compile contract:
+
+```
+populus compile
+```
+
 Start server:
 
 ```

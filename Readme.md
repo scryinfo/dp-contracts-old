@@ -34,6 +34,11 @@ In case of errors install dev libraries:
 ```
 sudo apt-get install python3-dev
 ```
+Run IPFS
+
+```
+ipfs daemon
+```
 
 Run ethereum:
 

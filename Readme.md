@@ -35,6 +35,12 @@ In case of errors install dev libraries:
 sudo apt-get install python3-dev
 ```
 
+Run ethereum:
+
+```
+./reset_parity.sh
+```
+
 Start server:
 
 ```

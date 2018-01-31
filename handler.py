@@ -36,8 +36,8 @@ class ConstraintError(Exception):
 # todo :
 # filter fields : cid
 # configure % reward
-# handle 0 verifiers
-# allow deleteing items
+# allow deleteing items ??
+# proper errors for items missing in DB
 
 def replace(items, into, lookup):
     out = into.copy()
@@ -278,9 +278,9 @@ def run_app(app, web3, token, contract, ipfs):
         listing = Listing.get(Listing.id == listing_id)
         verifier_id = data.get('verifier')
         verifier = None
-        if verifier_id is not None:
+        if verifier_id:
             verifier = Trader.get(Trader.account == verifier_id)
-        num_verifiers = 0 if verifier == None else 1
+        num_verifiers = 0 if not verifier else 1
         rewards = int(data.get('rewards', 1)) if verifier != None else 0
 
         check_purchase(buyer, verifier_id, listing)
@@ -291,11 +291,13 @@ def run_app(app, web3, token, contract, ipfs):
         auth_buyer = buyer_authorization(web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
 
         po = PurchaseOrder(buyer = buyer, listing = listing, 
-                            verifier=verifier, create_block = ch['create_block'],
+                            verifier=verifier,
+                            create_block = ch['create_block'],
                             needs_verification = False if verifier == None else True, 
                             needs_closure = True, 
                             buyer_auth = auth_buyer['balance_sig'],
                             rewards = rewards)
+
         po.save()
         return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
@@ -335,23 +337,27 @@ def run_app(app, web3, token, contract, ipfs):
         # get  order ID
         po = PurchaseOrder.get(PurchaseOrder.id == data['id'])
 
-        buyer_cs = to_checksum_address(po.buyer.account) # checksum address for eth
-        owner_cs = to_checksum_address(po.listing.owner.account)
-        verifier_cs = None
-        if po.verifier is not None:
-            verifier_cs = to_checksum_address(po.verifier.account)
-        listing = po.listing
-
-        # TODO: make sure verification is complete
-        if (po.needs_verification is True):
+        if (po.needs_verification):
             raise ConstraintError("Order needs Verification")
         if (po.needs_closure is False):
             raise ConstraintError("Order has already been Closed")
 
+        buyer_cs = to_checksum_address(po.buyer.account) # checksum address for eth
+        owner_cs = to_checksum_address(po.listing.owner.account)
+
+        listing = po.listing
+        if po.verifier:
+            verifier_auth = po.verifier_auth
+            verifier_cs = to_checksum_address(po.verifier.account)
+        else:
+            verifier_cs = to_checksum_address(accounts['verifier'])
+            auth_verifier = verifier_authorization(web3, owner_cs, verifier_cs, listing.cid, contract)
+            verifier_auth = auth_verifier['verification_sig']
+
         ret = close_channel(web3, buyer_cs, owner_cs,
                             verifier_cs, po.create_block,
                             listing.cid, listing.price,
-                            po.buyer_auth, po.verifier_auth, contract)
+                            po.buyer_auth, verifier_auth, contract)
 
         po.needs_closure = False
 

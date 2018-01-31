@@ -67,10 +67,10 @@ contract Scry {
         uint length = _data.length;
 
         // createChannel - receiver address (20 bytes + padding = 32 bytes)
-        require(length == 44);
-        address receiver = addressFromBytes(_data, 0x34);
-        uint32 verifiers = 1;//uint32FromBytes(_data, 24);
-        uint32 reward = uint32FromBytes(_data, 0x48);
+        require(length == 28);
+        address receiver = addressFromBytes(_data, 32);
+        uint32 reward = uint32FromBytes(_data, 52);
+        uint32 verifiers = uint32FromBytes(_data, 56);
 
         createChannelPrivate(_sender, receiver, deposit, verifiers, reward);
     }

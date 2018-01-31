@@ -28,7 +28,8 @@ def open_channel(web3, amount, buyer, seller, reward, num_verifiers, token, cont
     web3.personal.unlockAccount(buyer, "asdf")
     # open a channel: send tokens to contract
     nonce = web3.eth.getTransactionCount(buyer)
-    hx = buyer[2:] + seller[2:] + hex(reward)[2:].zfill(8)
+    hx = seller[2:] + hex(reward)[2:].zfill(8) + \
+        hex(num_verifiers)[2:].zfill(8)
     data = bytes.fromhex(hx)
     txid = token.transact({
         "from": buyer,

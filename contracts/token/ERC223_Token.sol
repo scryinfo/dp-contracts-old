@@ -62,7 +62,6 @@ contract ERC223Token is ERC223, SafeMath {
   
   // Function that is called when a user or another contract wants to transfer funds .
   function transfer(address _to, uint _value, bytes _data, string _custom_fallback) returns (bool success) {
-      
     if(isContract(_to)) {
         if (balanceOf(msg.sender) < _value) throw;
         balances[msg.sender] = safeSub(balanceOf(msg.sender), _value);

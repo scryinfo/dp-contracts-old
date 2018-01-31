@@ -34,8 +34,9 @@ class ConstraintError(Exception):
     status_code = 400
 
 # todo :
-# filter fields : cid, passwords etc
+# filter fields : cid
 # configure % reward
+# handle 0 verifiers
 # allow deleteing items
 
 def replace(items, into, lookup):
@@ -277,21 +278,24 @@ def run_app(app, web3, token, contract, ipfs):
         listing = Listing.get(Listing.id == listing_id)
         verifier_id = data['verifier']
         verifier = Trader.get(Trader.account == verifier_id)
+        rewards = int(data.get('rewards', 1))
 
         check_purchase(buyer, verifier_id, listing)
 
         owner_cs = to_checksum_address(listing.owner.account)
         buyer_cs = to_checksum_address(buyer_id) # checksum address for eth
-        ch = open_channel(web3, listing.price, buyer_cs, owner_cs, token, contract)
+        ch = open_channel(web3, listing.price, buyer_cs, owner_cs, rewards, token, contract)
         auth_buyer = buyer_authorization(web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
         
         po = PurchaseOrder(buyer = buyer, listing = listing, 
                             verifier=verifier, create_block = ch['create_block'],
                             needs_verification = True, 
                             needs_closure = True, 
-                            buyer_auth = auth_buyer['balance_sig'])
+                            buyer_auth = auth_buyer['balance_sig'],
+                            rewards = rewards,
+                            verifiers = 1)
         po.save()
-        return jsonify(model_to_dict(po))
+        return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/verifier/sign', methods=['POST'])
     def verify():
@@ -318,7 +322,7 @@ def run_app(app, web3, token, contract, ipfs):
             "args" : {"sender":po.verifier.account, "receiver": po.listing.owner.account},
             'blockNumber' : po.create_block,
             })
-        return jsonify(model_to_dict(po))
+        return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/seller/close', methods=['POST'])
     def close():
@@ -346,12 +350,7 @@ def run_app(app, web3, token, contract, ipfs):
         po.needs_closure = False
 
         po.save()
-        notify({
-            "event":"ChannelSettled",
-            "args" : {"sender":po.buyer.account, "receiver": po.listing.owner.account},
-            'blockNumber' : po.create_block,
-            })
-        return jsonify(model_to_dict(po))
+        return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/buyer/channel2')
     def channel2():
@@ -427,18 +426,20 @@ def run_app(app, web3, token, contract, ipfs):
     @app.route('/listings', methods=['GET'])
     def sale_items():
         owner = request.args.get("owner", None)
+        res = []
         if owner:
             trader = Trader.get(Trader.account == owner)
-            res = []
             for listing in trader.listings:
                 n_sold = len(listing.sales)
-                listing = model_to_dict(listing)
+                listing = model_to_dict(listing, exclude=[Listing.cid])
                 listing['sold'] = n_sold
                 res.append(listing)
             return jsonify(res)
 
         query = Listing.select()
-        res = [model_to_dict(listing) for listing in query]
+        for listing in query:
+            listing = model_to_dict(listing, exclude=[Listing.cid])
+            res.append(listing)
         return jsonify(res)
 
     @app.route('/seller/upload', methods=['POST'])

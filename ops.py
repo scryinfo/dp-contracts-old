@@ -21,19 +21,21 @@ def channel_info(contract, buyer, seller, open_block):
     return contract.call().getChannelInfo(buyer, seller, open_block)
 
 
-def open_channel(web3, amount, buyer, seller, token, contract):
+def open_channel(web3, amount, buyer, seller, reward, token, contract):
     amount = int(amount)
-    LOG.info("channel amount:{} from:{} to:{}".format(
-        amount, buyer, seller))
+    LOG.info("channel amount:{} from:{} to:{}".format(amount, buyer, seller))
     # unlock acct
     web3.personal.unlockAccount(buyer, "asdf")
     # open a channel: send tokens to contract
     nonce = web3.eth.getTransactionCount(buyer)
+    hx = buyer[2:] + seller[2:] + hex(reward)[2:].zfill(8)
+    print(hx)
+    data = bytes.fromhex(hx)
     txid = token.transact({
         "from": buyer,
         "nonce": nonce
     }).transfer(
-        contract.address, amount, bytes.fromhex(seller[2:].zfill(40)))
+        contract.address, amount, data)
     receipt = check_txn(web3, txid)
     return {'create_block': receipt['blockNumber']}
 

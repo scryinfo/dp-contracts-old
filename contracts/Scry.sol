@@ -67,9 +67,12 @@ contract Scry {
         uint length = _data.length;
 
         // createChannel - receiver address (20 bytes + padding = 32 bytes)
-        require(length == 20);
-        address receiver = addressFromData(_data);
-        createChannelPrivate(_sender, receiver, deposit, 1 ,1);
+        require(length == 44);
+        address receiver = addressFromBytes(_data, 0x34);
+        uint32 verifiers = 1;//uint32FromBytes(_data, 24);
+        uint32 reward = uint32FromBytes(_data, 0x48);
+
+        createChannelPrivate(_sender, receiver, deposit, verifiers, reward);
     }
 
     /// @dev Function called when receiver wants to close the channel and settle; receiver needs a balance proof to immediately settle
@@ -264,9 +267,10 @@ contract Scry {
     function createChannelPrivate(
         address _sender,
         address _receiver,
-        uint32 _verifier_reward,
+        uint32 _deposit,
         uint32 _num_verifier,
-        uint32 _deposit)
+        uint32 _verifier_reward
+        )
         private
     {
         //GasCost('createChannel start', block.gaslimit, msg.gas);
@@ -281,8 +285,8 @@ contract Scry {
         // Store channel information
         channels[key] = Channel({
             deposit: _deposit, 
-            verifier_reward: _verifier_reward,
             num_verifier: _num_verifier,
+            verifier_reward: _verifier_reward,
             open_block_number: open_block_number
             });
         //GasCost('createChannel end', block.gaslimit, msg.gas);
@@ -374,23 +378,28 @@ contract Scry {
         else return b;
     }
 
-    // 2656 gas cost
     /// @dev Internal function for getting an address from tokenFallback data bytes.
-    /// @param b Bytes received.
-    /// @return Address resulted.
-    function addressFromData (
-        bytes b)
-        internal
-        pure
-        returns (address)
-    {
-        bytes20 addr;
+    /// @param data Bytes received.
+    /// @param offset Number of bytes to offset.
+    /// @return Extracted address.
+    function addressFromBytes (bytes data, uint256 offset) internal pure returns (address) {
+        bytes20 extracted_address;
         assembly {
-            // Read address bytes
-            // Offset of 32 bytes, representing b.length
-            addr := mload(add(b, 0x20))
+            extracted_address := mload(add(data, offset))
         }
-        return address(addr);
+        return address(extracted_address);
+    }
+
+    /// @dev Internal function for getting an uint32 from tokenFallback data bytes.
+    /// @param data Bytes received.
+    /// @param offset Number of bytes to offset.
+    /// @return uint32.
+    function uint32FromBytes(bytes data, uint256 offset) internal pure returns (uint32) {
+        bytes4 ret;
+        assembly {
+            ret := mload(add(data, offset))
+        }
+        return uint32(ret);
     }
 
     function memcpy(

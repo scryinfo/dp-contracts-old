@@ -2,7 +2,6 @@ import binascii
 import logging
 import sys
 import copy
-import math
 
 from flask import request, jsonify, make_response, abort, Response
 import simplejson as json
@@ -280,7 +279,7 @@ def run_app(app, web3, token, contract, ipfs):
         if verifier_id:
             verifier = Trader.get(Trader.account == verifier_id)
         num_verifiers = 1 if verifier else 0
-        rewards = int(math.fabs(data.get('rewards', 1))) if verifier else 0
+        rewards = int(abs(int(data.get('rewards', 1)))) if verifier else 0
         # convert % to actual reward, truncates towards 0
         rewards = int((listing.price / 100) * rewards)
         check_purchase(buyer, verifier_id, listing)

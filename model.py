@@ -44,7 +44,6 @@ class PurchaseOrder(Model):
     verifier_auth = CharField(null=True)
     created_at = TimestampField(utc=True)
     rewards = IntegerField(default=1)
-    verifiers = IntegerField(default=1)
 
     class Meta:
         database = db

@@ -292,8 +292,7 @@ def run_app(app, web3, token, contract, ipfs):
                             needs_verification = True, 
                             needs_closure = True, 
                             buyer_auth = auth_buyer['balance_sig'],
-                            rewards = rewards,
-                            verifiers = 1)
+                            rewards = rewards)
         po.save()
         return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 

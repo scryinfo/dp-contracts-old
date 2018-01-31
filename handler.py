@@ -3,7 +3,7 @@ import logging
 import sys
 import copy
 
-from flask import request, jsonify, make_response, abort, Response
+from flask import stream_with_context, request, jsonify, make_response, abort, Response
 import simplejson as json
 from gevent import queue
 
@@ -46,6 +46,7 @@ def replace(items, into, lookup):
                 out[item] = lookup[addr]
     return out
 
+
 def run_app(app, web3, token, contract, ipfs):
 
     @app.errorhandler(TransactionFailed)
@@ -81,6 +82,33 @@ def run_app(app, web3, token, contract, ipfs):
     def constraint_error(error):
         message = {
             'error': '{}'.format(error),
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+        return resp
+
+    @app.errorhandler(Trader.DoesNotExist)
+    def missing_trader(error):
+        message = {
+            'error': 'Trader does not exist',
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+        return resp
+
+    @app.errorhandler(Listing.DoesNotExist)
+    def missing_listing(error):
+        message = {
+            'error': 'Listing does not exist',
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+        return resp
+
+    @app.errorhandler(PurchaseOrder.DoesNotExist)
+    def missing_po(error):
+        message = {
+            'error': 'Purchase does not exist',
         }
         resp = jsonify(message)
         resp.status_code = 400
@@ -131,6 +159,7 @@ def run_app(app, web3, token, contract, ipfs):
     # subscribe
     @app.route("/subscribe")
     def subscribe():
+        print(request.args)
         def gen():
             q = queue.Queue()
             # add the new queue to list that needs to be notified
@@ -149,7 +178,7 @@ def run_app(app, web3, token, contract, ipfs):
             except GeneratorExit:
                 subscriptions.remove(q)
 
-        return Response(gen(), mimetype="text/event-stream")
+        return Response(stream_with_context(gen()), mimetype="text/event-stream")
 
     def trader_details(trader):
         return {**model_to_dict(trader), **account_balance(web3, trader.account, token)}
@@ -186,7 +215,8 @@ def run_app(app, web3, token, contract, ipfs):
     # fund participant
     @app.route('/fund')
     def fund():
-        account = to_checksum_address(request.args.get('account'))
+        trader = Trader.get(Trader.account == request.args.get('account'))
+        account = to_checksum_address(trader.account)
         amount = int(request.args.get('amount'))
         LOG.info("fund amount:{} from:{} to:{}".format(
             amount, owner, account))

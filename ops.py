@@ -21,7 +21,7 @@ def channel_info(contract, buyer, seller, open_block):
     return contract.call().getChannelInfo(buyer, seller, open_block)
 
 
-def open_channel(web3, amount, buyer, seller, reward, token, contract):
+def open_channel(web3, amount, buyer, seller, reward, num_verifiers, token, contract):
     amount = int(amount)
     LOG.info("channel amount:{} from:{} to:{}".format(amount, buyer, seller))
     # unlock acct
@@ -29,7 +29,6 @@ def open_channel(web3, amount, buyer, seller, reward, token, contract):
     # open a channel: send tokens to contract
     nonce = web3.eth.getTransactionCount(buyer)
     hx = buyer[2:] + seller[2:] + hex(reward)[2:].zfill(8)
-    print(hx)
     data = bytes.fromhex(hx)
     txid = token.transact({
         "from": buyer,

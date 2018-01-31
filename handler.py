@@ -276,20 +276,23 @@ def run_app(app, web3, token, contract, ipfs):
         buyer = Trader.get(Trader.account == buyer_id)
         listing_id = data['listing']
         listing = Listing.get(Listing.id == listing_id)
-        verifier_id = data['verifier']
-        verifier = Trader.get(Trader.account == verifier_id)
-        rewards = int(data.get('rewards', 1))
+        verifier_id = data.get('verifier')
+        verifier = None
+        if verifier_id is not None:
+            verifier = Trader.get(Trader.account == verifier_id)
+        num_verifiers = 0 if verifier == None else 1
+        rewards = int(data.get('rewards', 1)) if verifier != None else 0
 
         check_purchase(buyer, verifier_id, listing)
 
         owner_cs = to_checksum_address(listing.owner.account)
         buyer_cs = to_checksum_address(buyer_id) # checksum address for eth
-        ch = open_channel(web3, listing.price, buyer_cs, owner_cs, rewards, token, contract)
+        ch = open_channel(web3, listing.price, buyer_cs, owner_cs, rewards, num_verifiers, token, contract)
         auth_buyer = buyer_authorization(web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
-        
+
         po = PurchaseOrder(buyer = buyer, listing = listing, 
                             verifier=verifier, create_block = ch['create_block'],
-                            needs_verification = True, 
+                            needs_verification = False if verifier == None else True, 
                             needs_closure = True, 
                             buyer_auth = auth_buyer['balance_sig'],
                             rewards = rewards)
@@ -310,6 +313,8 @@ def run_app(app, web3, token, contract, ipfs):
             raise ConstraintError("Order has already Been closed")
 
         owner_cs = to_checksum_address(po.listing.owner.account)
+        
+        assert (po.verifier is not None) # constraint check will make sure of this
         verifier_cs = to_checksum_address(po.verifier.account)
         auth_verifier = verifier_authorization(web3, owner_cs, verifier_cs, po.listing.cid, contract)
 
@@ -332,7 +337,9 @@ def run_app(app, web3, token, contract, ipfs):
 
         buyer_cs = to_checksum_address(po.buyer.account) # checksum address for eth
         owner_cs = to_checksum_address(po.listing.owner.account)
-        verifier_cs = to_checksum_address(po.verifier.account)
+        verifier_cs = None
+        if po.verifier is not None:
+            verifier_cs = to_checksum_address(po.verifier.account)
         listing = po.listing
 
         # TODO: make sure verification is complete

@@ -2,9 +2,9 @@ import binascii
 import logging
 import sys
 import copy
+import math
 
 from flask import request, jsonify, make_response, abort, Response
-
 import simplejson as json
 from gevent import queue
 
@@ -35,7 +35,6 @@ class ConstraintError(Exception):
 
 # todo :
 # filter fields : cid
-# configure % reward
 # allow deleteing items ??
 # proper errors for items missing in DB
 
@@ -280,9 +279,10 @@ def run_app(app, web3, token, contract, ipfs):
         verifier = None
         if verifier_id:
             verifier = Trader.get(Trader.account == verifier_id)
-        num_verifiers = 0 if not verifier else 1
-        rewards = int(data.get('rewards', 1)) if verifier != None else 0
-
+        num_verifiers = 1 if verifier else 0
+        rewards = int(math.fabs(data.get('rewards', 1))) if verifier else 0
+        # convert % to actual reward, truncates towards 0
+        rewards = int((listing.price / 100) * rewards)
         check_purchase(buyer, verifier_id, listing)
 
         owner_cs = to_checksum_address(listing.owner.account)
@@ -293,7 +293,7 @@ def run_app(app, web3, token, contract, ipfs):
         po = PurchaseOrder(buyer = buyer, listing = listing, 
                             verifier=verifier,
                             create_block = ch['create_block'],
-                            needs_verification = False if verifier == None else True, 
+                            needs_verification = True if verifier else False,
                             needs_closure = True, 
                             buyer_auth = auth_buyer['balance_sig'],
                             rewards = rewards)

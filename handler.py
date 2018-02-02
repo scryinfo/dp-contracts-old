@@ -35,7 +35,6 @@ class ConstraintError(Exception):
 # todo :
 # filter fields : cid
 # allow deleteing items ??
-# proper errors for items missing in DB
 
 def replace(items, into, lookup):
     out = into.copy()
@@ -255,7 +254,7 @@ def run_app(app, web3, token, contract, ipfs):
 
         owner_cs = to_checksum_address(listing.owner.account)
         buyer_cs = to_checksum_address(buyer_id) # checksum address for eth
-        ch = open_channel(web3, listing.price, buyer_cs, owner_cs, token, contract)
+        ch = open_channel(web3, listing.price, buyer_cs, owner_cs, 10, 1, token, contract)
 
         auth_buyer = buyer_authorization(
             web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)

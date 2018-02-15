@@ -1,94 +1,68 @@
 "use strict";
 
-const Contract = require("truffle-contract");
 const Web3 = require("web3");
-const Transaction = require("ethereumjs-tx");
-const coder = require("web3/lib/solidity/coder");
-const CryptoJS = require("crypto-js");
-const Utils = require("ethereumjs-util");
-
 const contracts = require("../build/contracts.json");
-const deployments = Object.values(require("../registrar.json").deployments);
+const deployments = require("../registrar.json").deployments;
 const provider = new Web3.providers.HttpProvider("http://localhost:8545");
 const web3 = new Web3(provider);
+var Tx = require("ethereumjs-tx");
 
-const reg = deployments.reduce(
+const registry = Object.values(deployments).reduce(
   (acc, ele) => (acc = Object.assign(acc, ele)),
   {}
 );
 
-async function main(args) {
-  const Token = Contract(contracts["ScryToken"]);
-  Token.setProvider(provider);
-  const token = await Token.at(reg["ScryToken"]);
+const token = new web3.eth.Contract(
+  contracts["ScryToken"].abi,
+  registry["ScryToken"]
+);
+console.info("token:", token._address);
 
-  const Scry = Contract(contracts["Scry"]);
-  Scry.setProvider(provider);
-  const scry = await Scry.at(reg["Scry"]);
+const privateKey =
+  "0x3686e245890c7f997766b73a21d8e59f6385e1208831af3862574790cbc3d158";
 
-  console.info("coinbase: ", web3.eth.coinbase);
-  console.info(
-    "coinbase token bal:",
-    (await token.balanceOf.call(web3.eth.coinbase)).toNumber()
-  );
+const acct = web3.eth.accounts.privateKeyToAccount(privateKey);
+console.info("acct:", acct.address);
 
-  const privateKey =
-    "0x3686e245890c7f997766b73a21d8e59f6385e1208831af3862574790cbc3d158";
+async function main() {
+  const coinbase = await web3.eth.getCoinbase();
+  console.info("coinbase", coinbase);
 
-  const acct = "0x" + Utils.privateToAddress(privateKey).toString("hex");
-  console.info("acct:", acct);
+  // send from coinbase to address
+  // console.info("tokens:", await token.methods.balanceOf(acct.address).call());
+  // const receipt1 = await token.methods
+  //   .transfer(acct.address, 100)
+  //   .send({
+  //     from: coinbase
+  //   });
+  // console.info("token receipt:", receipt1);
 
-  // give it an eth
-  const fundHash = await web3.eth.sendTransaction({
-    from: web3.eth.coinbase,
-    value: 1,
-    to: acct
-  });
-  console.info("fund receipt:", await web3.eth.getTransactionReceipt(fundHash));
-  console.info("eth bal:", await web3.eth.getBalance(acct).toNumber());
+  console.info("tokens:", await token.methods.balanceOf(acct.address).call());
 
-  // give it some token
-  console.info("token bal:", (await token.balanceOf.call(acct)).toNumber());
-  const tfrHash = await token.transfer(acct, 100, { from: web3.eth.coinbase });
-  console.info("token receipt:", tfrHash.receipt);
-  console.info("token bal:", (await token.balanceOf.call(acct)).toNumber());
-
-  const nonce = await web3.eth.getTransactionCount(acct);
+  const nonce = await web3.eth.getTransactionCount(acct.address);
   console.info("nonce:", nonce);
 
-  const data = "0x" + encodeFunctionTxData("register", ["uint256"], [888]);
-  console.info(data);
-
-  const tx = new Transaction({
-    to: acct,
-    value: 0,
+  // send from address to coinbase
+  const payload = token.methods.transfer(coinbase, 100).encodeABI();
+  console.info("pld", payload);
+  const tx = new Tx({
     nonce: nonce,
-    data: data,
-    gasLimit: 2000000
+    from: acct.address,
+    to: token._address,
+    gas: 38121,
+    // gasPrice: web3.utils.toWei("20", "gwei"),
+    data: payload
   });
   tx.sign(Buffer.from(privateKey.slice(2), "hex"));
-  const signedRawTx = "0x" + tx.serialize().toString("hex");
-  const txHash = await web3.eth.sendRawTransaction(signedRawTx);
-  console.info("txHash:", txHash);
+  const signed = "0x" + tx.serialize().toString("hex");
+  // const signed = await web3.eth.signTransaction(tx, coinbase);
+  console.info("signed", signed);
 
-  const receipt = await web3.eth.getTransactionReceipt(txHash);
-  console.info("receipt:", receipt);
+  const receipt = await web3.eth.sendSignedTransaction(signed);
+  console.info("token receipt:", receipt);
+  console.info("tokens:", await token.methods.balanceOf(acct.address).call());
 }
 
-function encodeFunctionTxData(functionName, types, args) {
-  const fullName = functionName + "(" + types.join() + ")";
-  const signature = CryptoJS.SHA3(fullName, { outputLength: 256 })
-    .toString(CryptoJS.enc.Hex)
-    .slice(0, 8);
-  const dataHex = signature + coder.encodeParams(types, args);
-
-  return dataHex;
-}
-
-main(process.argv)
-  .then(done => {
-    console.info("Done:", done);
-  })
-  .catch(error => {
-    console.error("error", error);
-  });
+main().catch(error => {
+  console.error("error", error);
+});

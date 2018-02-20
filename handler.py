@@ -26,6 +26,9 @@ from ops import (
     BalanceVerificationError
 )
 
+from flask_jwt import JWT, jwt_required, current_identity
+
+
 LOG = logging.getLogger('app')
 
 class ConstraintError(Exception):
@@ -187,7 +190,7 @@ def run_app(app, web3, token, contract, ipfs):
 
         # load post json
         data = json.loads(request.data)
-        LOG.info("new trader: {}".format(data))        
+        LOG.info("new trader: {}".format(data))
         ret = provider.make_request("parity_newAccountFromSecret", params=[
                                     "0x" + data['password'], "asdf"])
         if ret['result'] != data['account']:
@@ -203,7 +206,7 @@ def run_app(app, web3, token, contract, ipfs):
         trader.save()
         return jsonify(model_to_dict(trader))
 
-    # check balance
+# check balance
     @app.route('/balance')
     def balance():
         account = to_checksum_address(request.args.get('account'))
@@ -211,6 +214,7 @@ def run_app(app, web3, token, contract, ipfs):
 
     # fund participant
     @app.route('/fund')
+    @jwt_required()
     def fund():
         trader = Trader.get(Trader.account == request.args.get('account'))
         account = to_checksum_address(trader.account)
@@ -264,8 +268,8 @@ def run_app(app, web3, token, contract, ipfs):
                             auth_buyer['balance_sig'], auth_verifier['verification_sig'], contract)
 
         purchased = PurchaseOrder(buyer=buyer, listing=listing, create_block = ch['create_block'],
-                                needs_verification=False, needs_closure=False, 
-                                buyer_auth=auth_buyer['balance_sig'], 
+                                needs_verification=False, needs_closure=False,
+                                buyer_auth=auth_buyer['balance_sig'],
                                 verifier_auth=auth_verifier['verification_sig'])
         purchased.save()
         return jsonify(ret)
@@ -316,11 +320,11 @@ def run_app(app, web3, token, contract, ipfs):
         ch = open_channel(web3, listing.price, buyer_cs, owner_cs, rewards, num_verifiers, token, contract)
         auth_buyer = buyer_authorization(web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
 
-        po = PurchaseOrder(buyer = buyer, listing = listing, 
+        po = PurchaseOrder(buyer = buyer, listing = listing,
                             verifier=verifier,
                             create_block = ch['create_block'],
                             needs_verification = True if verifier else False,
-                            needs_closure = True, 
+                            needs_closure = True,
                             buyer_auth = auth_buyer['balance_sig'],
                             rewards = rewards)
 
@@ -341,7 +345,7 @@ def run_app(app, web3, token, contract, ipfs):
             raise ConstraintError("Order has already Been closed")
 
         owner_cs = to_checksum_address(po.listing.owner.account)
-        
+
         assert (po.verifier is not None) # constraint check will make sure of this
         verifier_cs = to_checksum_address(po.verifier.account)
         auth_verifier = verifier_authorization(web3, owner_cs, verifier_cs, po.listing.cid, contract)
@@ -545,3 +549,27 @@ def run_app(app, web3, token, contract, ipfs):
         seller = to_checksum_address(po.listing.owner.account)
         ret = channel_info(contract, buyer, seller, po.create_block)
         return jsonify(ret)
+
+        # fund participant
+    @app.route('/login/')
+    def login(name,password,address):
+        data=request.get_json()
+        if data['username']=='fake':
+            result = 'Wrong Username'
+        elif data['password']=='fake':
+            result = 'Wrong Password'
+        else:
+            result='50000$e5Blwxcu$41acf2710aca5eccdfd92d0d51cd63b5e4a7fdcb7149920c822c228c781cd8c1'
+        return result
+
+    def signup(name,password,address):
+
+        # check if username exist return Error user exists
+        # send token success (generated for a certain amount) --> research
+
+        return result
+
+    @app.route('/verify_JWT')
+    @jwt_required()
+    def verify_JWT():
+        return 'Valid'

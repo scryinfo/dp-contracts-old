@@ -1,4 +1,3 @@
-import binascii
 import logging
 
 from txn import check_txn
@@ -54,10 +53,10 @@ def close_channel(web3, buyer, seller, verifier, create_block, cid, amount, bala
     }).close(buyer,
              create_block,
              amount,
-             binascii.unhexlify(balance_sig),
+             bytes.fromhex(balance_sig),
              verifier,
              cid,
-             binascii.unhexlify(verify_sig))
+             bytes.fromhex(verify_sig))
     receipt = check_txn(web3, txid)
     return {'close_block': receipt['blockNumber'], 'cid': cid}
 
@@ -87,7 +86,7 @@ def verify_balance_sig(buyer, seller, create_block, amount, balance_sig, contrac
     msg = contract.call().getBalanceMessage(seller, create_block, amount)
     LOG.info("msg: {}".format(msg))
     proof = contract.call().verifyBalanceProof(
-        seller, create_block, amount, binascii.unhexlify(balance_sig))
+        seller, create_block, amount, bytes.fromhex(balance_sig))
     LOG.info("proof: {}".format(proof))
     if(proof.lower() != buyer.lower()):
         raise BalanceVerificationError("Cannot Verify Balance signature")

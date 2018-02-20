@@ -1,4 +1,3 @@
-import binascii
 import logging
 import sys
 import copy
@@ -158,7 +157,6 @@ def run_app(app, web3, token, contract, ipfs):
     # subscribe
     @app.route("/subscribe")
     def subscribe():
-        print(request.args)
         def gen():
             q = queue.Queue()
             # add the new queue to list that needs to be notified

@@ -1,13 +1,9 @@
 "use strict";
 
+const axios = require("axios");
 const Tx = require("ethereumjs-tx");
 const Web3 = require("web3");
-const {
-  toWei,
-  toHex,
-  padLeft,
-  hexToBytes
-} = require("web3-utils");
+const { toWei, toHex, padLeft, hexToBytes } = require("web3-utils");
 const contracts = require("../build/contracts.json");
 const deployments = require("../registrar.json").deployments;
 const provider = new Web3.providers.WebsocketProvider("ws://localhost:8546");
@@ -15,7 +11,8 @@ const web3 = new Web3(provider);
 
 // converts { "blockchain..":{"key":"val"}} to {"key":"val"}
 const registry = Object.values(deployments).reduce(
-  (acc, ele) => (acc = Object.assign(acc, ele)), {}
+  (acc, ele) => (acc = Object.assign(acc, ele)),
+  {}
 );
 
 const token = new web3.eth.Contract(
@@ -66,23 +63,23 @@ async function main() {
   // await sendToken(buyer, coinbase);
 
   // const createBlock = 281;
-  const createBlock = await openChannel(10, buyer, seller, 1, 1);
+  const createBlock = await openChannel2(10, buyer, seller, 1, 1);
   console.info("opened @:", createBlock);
-  const ba = await buyerAuthorization(buyer, seller, createBlock, 10);
-  console.info("ba:", ba);
-  const va = await verifierAuthorization(seller, verifier, cid);
-  console.info("va:", va);
-  const closed = await closeChannel(
-    buyer,
-    seller,
-    verifier,
-    createBlock,
-    cid,
-    10,
-    ba.signature,
-    va.signature
-  );
-  console.info("closed @:", closed);
+  // const ba = await buyerAuthorization(buyer, seller, createBlock, 10);
+  // console.info("ba:", ba);
+  // const va = await verifierAuthorization(seller, verifier, cid);
+  // console.info("va:", va);
+  // const closed = await closeChannel(
+  //   buyer,
+  //   seller,
+  //   verifier,
+  //   createBlock,
+  //   cid,
+  //   10,
+  //   ba.signature,
+  //   va.signature
+  // );
+  // console.info("closed @:", closed);
 }
 
 async function sendEth(from, to) {
@@ -90,8 +87,8 @@ async function sendEth(from, to) {
     from: from,
     to: to,
     value: 1
-  })
-  console.info("send @ ", tx.blockNumber)
+  });
+  console.info("send @ ", tx.blockNumber);
 }
 
 async function tokenBalance(address) {
@@ -129,6 +126,44 @@ async function sendTokenFromCoinbase(coinbase, address) {
   });
   console.info("tokens:", await token.methods.balanceOf(address).call());
   // console.info("token receipt:", receipt1);
+}
+
+async function openChannel2(amount, buyer, seller, reward, verifiers) {
+  console.info("buyer tokens:", await tokenBalance(buyer.address));
+  console.info("seller tokens:", await tokenBalance(seller.address));
+
+  const hx =
+    "0x" +
+    seller.address.slice(2) +
+    padLeft(reward, 8).slice(2) +
+    padLeft(verifiers, 8).slice(2);
+
+  const payload = token.methods
+    .transfer(contract._address, amount, hx)
+    .encodeABI();
+
+  const nonce = await web3.eth.getTransactionCount(buyer.address);
+  const tx = new Tx({
+    nonce: nonce,
+    from: buyer.address,
+    to: token._address,
+    gas: 198579,
+    data: payload
+  });
+  tx.sign(Buffer.from(buyer.privateKey.slice(2), "hex"));
+  const signed = "0x" + tx.serialize().toString("hex");
+
+  const resp = await axios({
+    method: "post",
+    url: "http://localhost:5000/rawTx",
+    data: { data: signed }
+  });
+  if (resp.status != 200) {
+    console.error("error:", resp.statusText);
+    return resp.statusText;
+  }
+  console.info("resp:", resp.data);
+  return resp.data;
 }
 
 async function openChannel(amount, buyer, seller, reward, verifiers) {

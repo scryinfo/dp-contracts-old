@@ -14,17 +14,8 @@ import rlp
 from ethereum.transactions import Transaction
 
 from model import Listing, Trader, PurchaseOrder
-from txn import check_txn, TransactionFailed
-from ops import (
-    channel_info,
-    account_balance,
-    open_channel,
-    close_channel,
-    verify_balance_sig,
-    buyer_authorization,
-    verifier_authorization,
-    BalanceVerificationError
-)
+from txn import TransactionFailed
+import ops
 
 LOG = logging.getLogger('app')
 
@@ -69,7 +60,7 @@ def run_app(app, web3, token, contract, ipfs):
         resp.status_code = 400
         return resp
 
-    @app.errorhandler(BalanceVerificationError)
+    @app.errorhandler(ops.BalanceVerificationError)
     def balance_error(error):
         message = {
             'verification': '{}'.format(error),
@@ -180,7 +171,7 @@ def run_app(app, web3, token, contract, ipfs):
         return Response(stream_with_context(gen()), mimetype="text/event-stream")
 
     def trader_details(trader):
-        return {**model_to_dict(trader), **account_balance(web3, trader.account, token)}
+        return {**model_to_dict(trader), **ops.account_balance(web3, trader.account, token)}
 
     @app.route('/trader', methods=['GET',  'POST'])
     def members():
@@ -197,9 +188,7 @@ def run_app(app, web3, token, contract, ipfs):
                 "saved account is not the same, ret: {}, data:{}".format(ret, data))
 
         # bootstrap new account with some ether
-        txid2 = web3.eth.sendTransaction(
-            {'from': owner, 'to': data['account'], 'value': 10})
-        check_txn(web3, txid2)
+        ops.send_eth(web3, owner, data['account'], 1)
 
         trader = Trader(name=data['username'], account=data['account'])
         trader.save()
@@ -209,7 +198,7 @@ def run_app(app, web3, token, contract, ipfs):
     @app.route('/balance')
     def balance():
         account = to_checksum_address(request.args.get('account'))
-        return jsonify(account_balance(web3, account, token))
+        return jsonify(ops.account_balance(web3, account, token))
 
     # fund participant
     @app.route('/fund')
@@ -221,10 +210,9 @@ def run_app(app, web3, token, contract, ipfs):
             amount, owner, account))
 
         # send token
-        txid = token.transact({"from": owner}).transfer(account, amount)
-        check_txn(web3, txid)
+        ops.send_token(web3, token, owner, account, amount)
 
-        return jsonify(account_balance(web3, account, token))
+        return jsonify(ops.account_balance(web3, account, token))
 
     def check_purchase(buyer, verifier_id, listing):
         # make sure verifier, buyer & seller are different
@@ -236,7 +224,7 @@ def run_app(app, web3, token, contract, ipfs):
             raise ConstraintError("Buyer must not be same as Seller")
 
         # make sure buyer has enough tokens to cover listing price
-        token_balance = account_balance(web3, buyer.account, token)
+        token_balance = ops.account_balance(web3, buyer.account, token)
         if (listing.price > token_balance['balance']):
             raise ConstraintError("Buyer does not have enough tokens")
 
@@ -254,17 +242,17 @@ def run_app(app, web3, token, contract, ipfs):
 
         owner_cs = to_checksum_address(listing.owner.account)
         buyer_cs = to_checksum_address(buyer_id)  # checksum address for eth
-        ch = open_channel(web3, listing.price, buyer_cs,
-                          owner_cs, 10, 1, token, contract)
+        ch = ops.open_channel(web3, listing.price, buyer_cs,
+                              owner_cs, 10, 1, token, contract)
 
-        auth_buyer = buyer_authorization(
+        auth_buyer = ops.buyer_authorization(
             web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
-        auth_verifier = verifier_authorization(
+        auth_verifier = ops.verifier_authorization(
             web3, owner_cs, accounts['verifier'], listing.cid, contract)
-        ret = close_channel(web3, buyer_cs, owner_cs,
-                            accounts['verifier'], ch['create_block'],
-                            listing.cid, listing.price,
-                            auth_buyer['balance_sig'], auth_verifier['verification_sig'], contract)
+        ret = ops.close_channel(web3, buyer_cs, owner_cs,
+                                accounts['verifier'], ch['create_block'],
+                                listing.cid, listing.price,
+                                auth_buyer['balance_sig'], auth_verifier['verification_sig'], contract)
 
         purchased = PurchaseOrder(buyer=buyer, listing=listing, create_block=ch['create_block'],
                                   needs_verification=False, needs_closure=False,
@@ -318,9 +306,9 @@ def run_app(app, web3, token, contract, ipfs):
 
         owner_cs = to_checksum_address(listing.owner.account)
         buyer_cs = to_checksum_address(buyer_id)  # checksum address for eth
-        ch = open_channel(web3, listing.price, buyer_cs,
-                          owner_cs, rewards, num_verifiers, token, contract)
-        auth_buyer = buyer_authorization(
+        ch = ops.open_channel(web3, listing.price, buyer_cs,
+                              owner_cs, rewards, num_verifiers, token, contract)
+        auth_buyer = ops.buyer_authorization(
             web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
 
         po = PurchaseOrder(buyer=buyer, listing=listing,
@@ -352,7 +340,7 @@ def run_app(app, web3, token, contract, ipfs):
         # constraint check will make sure of this
         assert (po.verifier is not None)
         verifier_cs = to_checksum_address(po.verifier.account)
-        auth_verifier = verifier_authorization(
+        auth_verifier = ops.verifier_authorization(
             web3, owner_cs, verifier_cs, po.listing.cid, contract)
 
         po.verifier_auth = auth_verifier['verification_sig']
@@ -387,14 +375,14 @@ def run_app(app, web3, token, contract, ipfs):
             verifier_cs = to_checksum_address(po.verifier.account)
         else:
             verifier_cs = to_checksum_address(accounts['verifier'])
-            auth_verifier = verifier_authorization(
+            auth_verifier = ops.verifier_authorization(
                 web3, owner_cs, verifier_cs, listing.cid, contract)
             verifier_auth = auth_verifier['verification_sig']
 
-        ret = close_channel(web3, buyer_cs, owner_cs,
-                            verifier_cs, po.create_block,
-                            listing.cid, listing.price,
-                            po.buyer_auth, verifier_auth, contract)
+        ret = ops.close_channel(web3, buyer_cs, owner_cs,
+                                verifier_cs, po.create_block,
+                                listing.cid, listing.price,
+                                po.buyer_auth, verifier_auth, contract)
 
         po.needs_closure = False
 
@@ -405,9 +393,7 @@ def run_app(app, web3, token, contract, ipfs):
     def rawTx():
         js = json.loads(request.data)
         LOG.info("raw request: {}".format(js))
-        txid = web3.eth.sendRawTransaction(js['data'])
-        # LOG.info("channel txid: {}".format(txid.hex()))
-        receipt = check_txn(web3, txid)
+        receipt = ops.raw_txn(web3, js['data'])
         return jsonify({'create_block': receipt['blockNumber']})
 
     @app.route('/value_tx')
@@ -493,8 +479,8 @@ def run_app(app, web3, token, contract, ipfs):
         amount = int(request.args.get('amount', 100))
         balance_sig = request.args.get('balance_sig')
         create_block = int(request.args.get('create_block'))
-        verify_balance_sig(buyer, seller, create_block,
-                           amount, balance_sig, contract)
+        ops.verify_balance_sig(buyer, seller, create_block,
+                               amount, balance_sig, contract)
         return jsonify({'verification': 'OK'})
 
     @app.route("/info/channel", methods=['GET'])
@@ -503,5 +489,5 @@ def run_app(app, web3, token, contract, ipfs):
         # checksum address for eth
         buyer = to_checksum_address(po.buyer.account)
         seller = to_checksum_address(po.listing.owner.account)
-        ret = channel_info(contract, buyer, seller, po.create_block)
+        ret = ops.channel_info(contract, buyer, seller, po.create_block)
         return jsonify(ret)

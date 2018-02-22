@@ -9,6 +9,25 @@ class BalanceVerificationError(Exception):
     status_code = 400
 
 
+def send_eth(web3, sender, receiver, value):
+    txid = web3.eth.sendTransaction(
+        {'from': sender, 'to': receiver, 'value': value})
+    return check_txn(web3, txid)
+
+
+def send_token(web3, token, sender, receiver, amount):
+    txid = token.transact({"from": sender}).transfer(receiver, amount)
+    return check_txn(web3, txid)
+
+# def chain_id():
+
+
+def raw_txn(web3, data):
+    txid = web3.eth.sendRawTransaction(data)
+    # LOG.info("channel txid: {}".format(txid.hex()))
+    return check_txn(web3, txid)
+
+
 def account_balance(web3, account, token):
     return {
         'balance': token.call().balanceOf(account),

@@ -15,16 +15,26 @@ def send_eth(web3, sender, receiver, value):
     return check_txn(web3, txid)
 
 
-def send_token(web3, token, sender, receiver, amount):
-    txid = token.transact({"from": sender}).transfer(receiver, amount)
-    return check_txn(web3, txid)
+def gas_price(web3):
+    return web3.eth.gasPrice
 
-# def chain_id():
+
+def chain_id(web3):
+    return web3.net.version
+
+
+def nonce(web3, account):
+    return web3.eth.getTransactionCount(account)
 
 
 def raw_txn(web3, data):
     txid = web3.eth.sendRawTransaction(data)
     # LOG.info("channel txid: {}".format(txid.hex()))
+    return check_txn(web3, txid)
+
+
+def send_token(web3, token, sender, receiver, amount):
+    txid = token.transact({"from": sender}).transfer(receiver, amount)
     return check_txn(web3, txid)
 
 

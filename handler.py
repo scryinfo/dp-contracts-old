@@ -396,14 +396,20 @@ def run_app(app, web3, token, contract, ipfs):
         receipt = ops.raw_txn(web3, js['data'])
         return jsonify({'create_block': receipt['blockNumber']})
 
-    @app.route('/value_tx')
-    def getValueTx():
+    # chainId, gasPrice
+    @app.route('/chainInfo', methods=['GET'])
+    def chainInfo():
         return jsonify({
-            'to': 0,
-            'gasLimit': 0,
-            'gasPrice': 0,
-            'value': 0,
-            'nonce': 0,
+            'gasPrice': ops.gas_price(web3),
+            'chainId': ops.chain_id(web3),
+        })
+
+    # nonce
+    @app.route('/nonce', methods=['GET'])
+    def nonce():
+        account = to_checksum_address(request.args.get('account'))
+        return jsonify({
+            'nonce': ops.nonce(web3, account)
         })
 
     @app.route('/listings', methods=['GET'])

@@ -61,7 +61,7 @@ async function main() {
   // send from address to coinbase
   // await sendToken(buyer, coinbase);
 
-  const createBlock = await openChannel2(10, buyer, seller, 1, 1);
+  const createBlock = await openChannel(10, buyer, seller, 1, 1);
   console.info("opened @:", createBlock);
   const ba = await buyerAuthorization(buyer, seller, createBlock, 10);
   console.info("ba:", ba);

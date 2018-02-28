@@ -6,13 +6,10 @@ from flask_cors import CORS
 from populus import Project
 import ipfsapi
 import simplejson as json
-
-from flask_jwt import JWT, jwt_required, current_identity
-from werkzeug.security import safe_str_cmp
-from datetime import datetime, timedelta
-
 from handler import run_app
-from model import db
+from model import Trader
+from flask_login import LoginManager
+import websiteconfig as config
 
 if __name__ == '__main__':
     from gevent import monkey
@@ -36,65 +33,16 @@ LOG.info("connected to IPFS: {}".format(ipfs.id()['ID']))
 app = Flask(__name__)
 # 1G file upload limit
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
-
-app.config['SECRET_KEY'] = 'super-secret'
-
-app.config['JWT_DEFAULT_REALM'] = 'Login Required'
-
-app.config['JWT_AUTH_URL_RULE'] = '/auth'
-app.config['JWT_AUTH_ENDPOINT'] = 'jwt'
-app.config['JWT_AUTH_USERNAME_KEY'] = 'username'
-app.config['JWT_AUTH_PASSWORD_KEY'] = 'password'
-app.config['JWT_ALGORITHM'] = 'HS256'
-app.config['JWT_LEEWAY'] = timedelta(seconds=10)
-app.config['JWT_AUTH_HEADER_PREFIX'] = 'JWT'
-app.config['JWT_EXPIRATION_DELTA'] = timedelta(seconds=300)
-app.config['JWT_NOT_BEFORE_DELTA'] = timedelta(seconds=0)
-app.config['JWT_VERIFY_CLAIMS'] = ['signature', 'exp', 'nbf', 'iat']
-app.config['JWT_REQUIRED_CLAIMS'] = ['exp', 'iat', 'nbf']
-
-
-
-class User(object):
-    def __init__(self, id, username, password):
-        self.id = id
-        self.username = username
-        self.password = password
-
-    def __str__(self):
-        return "User(id='%s')" % self.id
-
-users = [
-    User(1, 'user1', 'abcxyz'),
-    User(2, 'user2', 'abcxyz'),
-]
-
-username_table = {u.username: u for u in users}
-userid_table = {u.id: u for u in users}
-
-def authenticate(username, password):
-    user = username_table.get(username, None)
-    if user and safe_str_cmp(user.password.encode('utf-8'), password.encode('utf-8')):
-        return user
-def identity(payload):
-    user_id = payload['identity']
-    return userid_table.get(user_id, None)
-
-jwt = JWT(app, authenticate, identity)
-
-
-
 logging.getLogger('flask_cors').level = logging.DEBUG
 
 # allow all domains on all routes
 CORS(app)
 
-#CORS(app, origins="http://127.0.0.1:3000",allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials", "Access-Control-Allow-Origin"], supports_credentials=True)
-
-
-
-
-
+# Login setup
+login_manager = LoginManager()
+login_manager.session_protection = "strong"
+app.config['SECRET_KEY'] = config.SECRET_KEY
+login_manager.init_app(app)
 
 @app.before_request
 def before_request():
@@ -139,7 +87,7 @@ with app.app_context():
         LOG.info('token:{}'.format(token.address))
         LOG.info('contract:{}'.format(contract.address))
 
-        run_app(current_app, chain.web3, token, contract, ipfs)
+        run_app(current_app, chain.web3, token, contract, ipfs, login_manager)
 
 
 

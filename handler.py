@@ -14,7 +14,7 @@ from eth_utils import to_checksum_address
 import rlp
 from ethereum.transactions import Transaction
 
-from model import Listing, Trader, PurchaseOrder
+from model import Listing, Trader, PurchaseOrder, User
 from txn import check_txn, TransactionFailed
 from ops import (
     channel_info,
@@ -26,9 +26,7 @@ from ops import (
     verifier_authorization,
     BalanceVerificationError
 )
-
-from flask_jwt import JWT, jwt_required, current_identity
-
+from flask_login import login_user,login_required,logout_user
 
 LOG = logging.getLogger('app')
 
@@ -49,7 +47,7 @@ def replace(items, into, lookup):
     return out
 
 
-def run_app(app, web3, token, contract, ipfs):
+def run_app(app, web3, token, contract, ipfs, login_manager):
 
     @app.errorhandler(TransactionFailed)
     def transaction_failed(error):
@@ -186,6 +184,7 @@ def run_app(app, web3, token, contract, ipfs):
         return {**model_to_dict(trader), **account_balance(web3, trader.account, token)}
 
     @app.route('/trader', methods=['GET',  'POST'])
+    @login_required
     def members():
         if request.method == 'GET':
             return jsonify([trader_details(trader) for trader in Trader.select()])
@@ -210,13 +209,14 @@ def run_app(app, web3, token, contract, ipfs):
 
 # check balance
     @app.route('/balance')
+    @login_required
     def balance():
         account = to_checksum_address(request.args.get('account'))
         return jsonify(account_balance(web3, account, token))
 
     # fund participant
     @app.route('/fund')
-    @jwt_required()
+    @login_required
     def fund():
         trader = Trader.get(Trader.account == request.args.get('account'))
         account = to_checksum_address(trader.account)
@@ -245,6 +245,7 @@ def run_app(app, web3, token, contract, ipfs):
             raise ConstraintError("Buyer does not have enough tokens")
 
     @app.route('/purchase', methods=['POST'])
+    @login_required
     def purchase():
         data = json.loads(request.data)
         LOG.info("purchase: {}".format(data))
@@ -277,6 +278,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(ret)
 
     @app.route('/history', methods=['GET'])
+    @login_required
     def history():
         res = []
         buyer_id = request.args.get('buyer')
@@ -299,6 +301,7 @@ def run_app(app, web3, token, contract, ipfs):
 
     # create channel to seller
     @app.route('/buyer/purchase', methods=['POST'])
+    @login_required
     def channel():
         data = json.loads(request.data)
         LOG.info("purchase: {}".format(data))
@@ -334,6 +337,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/verifier/sign', methods=['POST'])
+    @login_required
     def verify():
         data = json.loads(request.data)
         LOG.info("verify: {}".format(data))
@@ -363,6 +367,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/seller/close', methods=['POST'])
+    @login_required
     def close():
         data = json.loads(request.data)
         LOG.info("close: {}".format(data))
@@ -397,6 +402,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/buyer/channel2')
+    @login_requireds
     def channel2():
         buyer = request.args.get('buyer')
         seller = request.args.get('seller')
@@ -449,6 +455,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify({'create_block': receipt['blockNumber']})
 
     @app.route('/rawTx', methods=['POST'])
+    @login_required
     def rawTx():
         rlp = request.data
         encoded = web3.toHex(rlp)
@@ -458,6 +465,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify({'create_block': receipt['blockNumber']})
 
     @app.route('/value_tx')
+    @login_required
     def getValueTx():
         return jsonify({
             'to': 0,
@@ -468,6 +476,7 @@ def run_app(app, web3, token, contract, ipfs):
         })
 
     @app.route('/listings', methods=['GET'])
+    @login_required
     def sale_items():
         owner = request.args.get("owner", None)
         res = []
@@ -487,6 +496,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(res)
 
     @app.route('/seller/upload', methods=['POST'])
+    @login_required
     def upload_file():
         seller_id = request.args.get('account')
         seller = Trader.get(Trader.account == seller_id)
@@ -519,6 +529,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(m2dict)
 
     @app.route('/seller/download', methods=['GET'])
+    @login_required
     def download_file():
         cid = request.args.get('CID')
         raw_bytes = ''
@@ -533,6 +544,7 @@ def run_app(app, web3, token, contract, ipfs):
         return response
 
     @app.route("/seller/verify_balance")
+    @login_required
     def verify_balance():
         buyer = request.args.get('buyer')
         seller = request.args.get('seller')
@@ -545,6 +557,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify({'verification': 'OK'})
 
     @app.route("/info/channel", methods=['GET'])
+    @login_required
     def info_channel():
         po = PurchaseOrder.get(PurchaseOrder.id == request.args.get('id'))
         buyer = to_checksum_address(po.buyer.account) # checksum address for eth
@@ -553,25 +566,75 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(ret)
 
         # fund participant
-    @app.route('/login/')
-    def login(name,password,address):
-        data=request.get_json()
-        if data['username']=='fake':
-            result = 'Wrong Username'
-        elif data['password']=='fake':
-            result = 'Wrong Password'
-        else:
-            result='50000$e5Blwxcu$41acf2710aca5eccdfd92d0d51cd63b5e4a7fdcb7149920c822c228c781cd8c1'
+    @app.route('/login/',methods=['POST'])
+    def login():
+        if request.method == 'POST':
+            data=request.get_json()
+            username= data['name']
+            userpassword = data['password']
+            query=None
+            try: # Peewee returns an error if record not exist instead of returning none(!)
+                query=Trader.get(name=username)
+            except:
+                pass
+            if query:
+                if query.password==userpassword:
+                    user = get_user(query.id) # creates a User instance with id=id
+                    login_user(user)
+                    result="Logged In"
+                else:
+                    result="Wrong password"
+            else:
+                result="Wrong Username"
         return result
 
-    def signup(name,password,address):
-
+    @app.route('/signup',methods=["POST"])
+    def signup():
+    if request.method == 'POST':
+        data=request.get_json()
+        try:
+            query= Trader.get(name=data['name'])
+            result="User exists"
+        except:
+            Trader.create(name=data['name'], account=data['account'], password=data['password'])
+            result="Record created"
+        return result
         # check if username exist return Error user exists
         # send token success (generated for a certain amount) --> research
 
-        return result
+    @login_manager.unauthorized_handler
+    def unauthorized_handler():
+        return 'Unauthorized'
 
-    @app.route('/verify_JWT')
-    @jwt_required()
-    def verify_JWT():
-        return 'Valid'
+    def get_user(id):
+        try:
+            dbuser=Trader.get(id=int(id))
+            return User(dbuser.id)
+        except:
+            return None
+
+    #Before every request, will reload the User object in the session
+    #If None is returned, the request will be denied (unauthorized)
+    @login_manager.user_loader
+    def user_loader(id):
+        return get_user(id)
+
+    @app.route('/logout')
+    def logout():
+        logout_user()
+        return 'Logged out'
+
+'''This part is to customize login from request (ex JWT Token)
+    @login_manager.request_loader
+    def request_loader(request):
+        try:
+            query = Trader.get(name=request.form['name'])
+            user=get_user(query.id)
+                # DO NOT ever store passwords in plaintext and always compare password
+                # hashes using constant-time comparison!
+            user.is_authenticated = request.form['password'] == query.password
+        except:
+            user=None
+
+            return user
+'''

@@ -1,12 +1,16 @@
 import datetime
 from peewee import *
+from flask_login import UserMixin
+#import psycopg2
 
 db = SqliteDatabase('scry.db')
-
+#db = PostgresqlDatabase('scry', user='postgres',
+#                           host='127.0.0.1', port=5432)
 
 class Trader(Model):
     name = CharField(unique=True)
     account = CharField()
+    password = CharField()
     created_at = TimestampField(utc=True)
 
     class Meta:
@@ -56,3 +60,8 @@ def create_tables():
 
 
 create_tables()
+
+class User(UserMixin):
+    def __init__(self, id, active=True):
+          self.id = id
+          self.active = active

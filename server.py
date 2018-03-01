@@ -36,7 +36,7 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 logging.getLogger('flask_cors').level = logging.DEBUG
 
 # allow all domains on all routes
-CORS(app)
+CORS(app,supports_credentials=True)
 
 # Login setup
 login_manager = LoginManager()

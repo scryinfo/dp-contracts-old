@@ -402,7 +402,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/buyer/channel2')
-    @login_requireds
+    @login_required
     def channel2():
         buyer = request.args.get('buyer')
         seller = request.args.get('seller')
@@ -581,23 +581,23 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
                 if query.password==userpassword:
                     user = get_user(query.id) # creates a User instance with id=id
                     login_user(user)
-                    result="Logged In"
+                    result="Success"
                 else:
-                    result="Wrong password"
+                    result="Fail" # Wrong Password
             else:
-                result="Wrong Username"
+                result="Fail" # Wrong Username
         return result
 
     @app.route('/signup',methods=["POST"])
     def signup():
-    if request.method == 'POST':
-        data=request.get_json()
-        try:
-            query= Trader.get(name=data['name'])
-            result="User exists"
-        except:
-            Trader.create(name=data['name'], account=data['account'], password=data['password'])
-            result="Record created"
+        if request.method == 'POST':
+            data=request.get_json()
+            try:
+                query= Trader.get(name=data['name'])
+                result="User exists"
+            except:
+                Trader.create(name=data['name'], account=data['account'], password=data['password'])
+                result="Record created"
         return result
         # check if username exist return Error user exists
         # send token success (generated for a certain amount) --> research

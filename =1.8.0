@@ -1,9 +1,0 @@
-Collecting tox
-  Downloading tox-2.9.1-py2.py3-none-any.whl (73kB)
-Requirement already satisfied: py>=1.4.17 in /home/chuck/scry/lib/python3.5/site-packages (from tox)
-Collecting virtualenv>=1.11.2; python_version != "3.2" (from tox)
-  Using cached virtualenv-15.1.0-py2.py3-none-any.whl
-Requirement already satisfied: six in /home/chuck/scry/lib/python3.5/site-packages (from tox)
-Requirement already satisfied: pluggy<1.0,>=0.3.0 in /home/chuck/scry/lib/python3.5/site-packages (from tox)
-Installing collected packages: virtualenv, tox
-Successfully installed tox-2.9.1 virtualenv-15.1.0

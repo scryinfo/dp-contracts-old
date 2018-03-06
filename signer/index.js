@@ -6,7 +6,8 @@ const { toWei, toHex, padLeft, hexToBytes } = require("web3-utils");
 const contracts = require("../build/contracts.json");
 const deployments = require("../registrar.json").deployments;
 const provider = new Web3.providers.WebsocketProvider("ws://localhost:8546");
-const web3 = new Web3(provider);
+// const web3 = new Web3(provider);
+const web3 = new Web3();
 
 // converts { "blockchain..":{"key":"val"}} to {"key":"val"}
 const registry = Object.values(deployments).reduce(
@@ -26,9 +27,9 @@ console.info("contract:", contract._address);
 function onEvt(err, evt) {
   console.info(`event: ${evt.event} : ${JSON.stringify(evt.returnValues)}`);
 }
-token.events.Transfer({}, onEvt);
-contract.events.ChannelCreated({}, onEvt);
-contract.events.ChannelSettled({}, onEvt);
+// token.events.Transfer({}, onEvt);
+// contract.events.ChannelCreated({}, onEvt);
+// contract.events.ChannelSettled({}, onEvt);
 
 const buyerKey =
   "0xa518652e06e57e6d9e9ff93ad5eef2892415a9735ff14c246eff301342c8e0f7";
@@ -48,20 +49,20 @@ console.info("verifier:", verifier.address);
 const cid = "QmZ3gZXbckAxfJafysmmoNPwx67WiaLdqoYCxrnVWNeJ7R";
 
 async function main() {
-  const coinbase = await web3.eth.getCoinbase();
-  console.info("coinbase:", coinbase);
+  // const coinbase = await web3.eth.getCoinbase();
+  // console.info("coinbase:", coinbase);
 
   // await sendTokenFromCoinbase(coinbase, buyer.address);
   // await sendEth(coinbase, seller.address);
   // await sendEth(coinbase, buyer.address);
 
-  console.info("buyer eth: ", await web3.eth.getBalance(buyer.address));
-  console.info("seller eth: ", await web3.eth.getBalance(seller.address));
+  // console.info("buyer eth: ", await web3.eth.getBalance(buyer.address));
+  // console.info("seller eth: ", await web3.eth.getBalance(seller.address));
 
   // send from address to coinbase
   // await sendToken(buyer, coinbase);
 
-  const createBlock = await openChannel(10, buyer, seller, 1, 1);
+  const createBlock = await openChannel2(10, buyer, seller, 1, 1);
   console.info("opened @:", createBlock);
   const ba = await buyerAuthorization(buyer, seller, createBlock, 10);
   console.info("ba:", ba);
@@ -127,34 +128,50 @@ async function sendTokenFromCoinbase(coinbase, address) {
 }
 
 async function openChannel2(amount, buyer, seller, reward, verifiers) {
-  console.info("buyer tokens:", await tokenBalance(buyer.address));
-  console.info("seller tokens:", await tokenBalance(seller.address));
+  // console.info("buyer tokens:", await tokenBalance(buyer.address));
+  // console.info("seller tokens:", await tokenBalance(seller.address));
 
   const hx =
     "0x" +
     seller.address.slice(2) +
     padLeft(reward, 8).slice(2) +
     padLeft(verifiers, 8).slice(2);
+  console.info(`hx: ${hx}`);
 
   const payload = token.methods
     .transfer(contract._address, amount, hx)
     .encodeABI();
 
-  const nonce = await web3.eth.getTransactionCount(buyer.address);
+  const chainInfo = await axios.get("http://localhost:5000/chainInfo");
+  const { gasPrice, chainId } = chainInfo.data;
+
+  const nonceInfo = await axios.get(
+    `http://localhost:5000/nonce/${buyer.address}`
+  );
+  const { nonce } = nonceInfo.data;
+  console.info(gasPrice, chainId, nonce);
+
   const tx = {
+    chainId: chainId,
+    gasPrice: gasPrice,
     nonce: nonce,
     from: buyer.address,
     to: token._address,
     gas: 198579,
     data: payload
   };
+  console.info(`tx: ${JSON.stringify(tx)}`);
+  console.info(`key: ${buyer.privateKey}`);
+
   const signed = await web3.eth.accounts.signTransaction(tx, buyer.privateKey);
   console.info("signed", signed);
 
   const resp = await axios({
     method: "post",
     url: "http://localhost:5000/rawTx",
-    data: { data: signed.rawTransaction }
+    data: {
+      data: signed.rawTransaction
+    }
   });
   if (resp.status != 200) {
     console.error("error:", resp.statusText);

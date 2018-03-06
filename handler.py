@@ -312,20 +312,15 @@ def run_app(app, web3, token, contract, ipfs):
         # convert % to actual reward, truncates towards 0
         rewards = int((listing.price / 100) * rewards)
         check_purchase(buyer, verifier_id, listing)
-
-        owner_cs = to_checksum_address(listing.owner.account)
-        buyer_cs = to_checksum_address(buyer_id)  # checksum address for eth
-        ch = ops.open_channel(web3, listing.price, buyer_cs,
-                              owner_cs, rewards, num_verifiers, token, contract)
-        auth_buyer = ops.buyer_authorization(
-            web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
+        ch = data.get('createBlock')
+        auth_buyer = data.get('buyerAuth')
 
         po = PurchaseOrder(buyer=buyer, listing=listing,
                            verifier=verifier,
-                           create_block=ch['create_block'],
+                           create_block=ch,
                            needs_verification=True if verifier else False,
                            needs_closure=True,
-                           buyer_auth=auth_buyer['balance_sig'],
+                           buyer_auth=auth_buyer,
                            rewards=rewards)
 
         po.save()
@@ -336,7 +331,7 @@ def run_app(app, web3, token, contract, ipfs):
         data = json.loads(request.data)
         LOG.info("verify: {}".format(data))
         # get  order ID
-        po = PurchaseOrder.get(PurchaseOrder.id == data['id'])
+        po = PurchaseOrder.get(PurchaseOrder.id == data['item'])
 
         # TODO: make sure verification is pending
         if (po.needs_verification is False):
@@ -348,11 +343,8 @@ def run_app(app, web3, token, contract, ipfs):
 
         # constraint check will make sure of this
         assert (po.verifier is not None)
-        verifier_cs = to_checksum_address(po.verifier.account)
-        auth_verifier = ops.verifier_authorization(
-            web3, owner_cs, verifier_cs, po.listing.cid, contract)
 
-        po.verifier_auth = auth_verifier['verification_sig']
+        po.verifier_auth = data.get('verifierAuth')
         po.needs_verification = False
         po.save()
         notify({

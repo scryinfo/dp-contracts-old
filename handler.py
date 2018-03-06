@@ -1,6 +1,7 @@
 import logging
 import sys
 import copy
+from datetime import date, datetime
 
 from flask import stream_with_context, request, jsonify, make_response, abort, Response
 import simplejson as json
@@ -36,6 +37,14 @@ def replace(items, into, lookup):
             if addr in lookup:
                 out[item] = lookup[addr]
     return out
+
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError("Type %s not serializable" % type(obj))
 
 
 def run_app(app, web3, token, contract, ipfs):

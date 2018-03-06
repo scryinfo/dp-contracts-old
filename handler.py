@@ -414,12 +414,17 @@ def run_app(app, web3, token, contract, ipfs):
         })
 
     # nonce
-    @app.route('/nonce', methods=['GET'])
-    def nonce():
-        account = to_checksum_address(request.args.get('account'))
+    @app.route('/nonce/<account>', methods=['GET'])
+    def nonce(account):
+        account = to_checksum_address(account)
         return jsonify({
             'nonce': ops.nonce(web3, account)
         })
+
+    @app.route('/listing/<id>', methods=['GET'])
+    def listing(id):
+        res = Listing.get(Listing.id == id)
+        return jsonify(model_to_dict(res))
 
     @app.route('/listings', methods=['GET'])
     def sale_items():

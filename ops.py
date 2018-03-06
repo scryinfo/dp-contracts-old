@@ -20,7 +20,7 @@ def gas_price(web3):
 
 
 def chain_id(web3):
-    return web3.net.version
+    return int(web3.net.version)
 
 
 def nonce(web3, account):

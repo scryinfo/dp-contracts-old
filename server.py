@@ -1,6 +1,6 @@
 import sys
 import logging
-from flask import Flask, current_app
+from flask import Flask, current_app, jsonify
 from flask.logging import PROD_LOG_FORMAT
 from flask_cors import CORS
 from populus import Project
@@ -47,26 +47,39 @@ def after_request(response):
     return response
 
 
+_registrar = json.load(open("registrar.json"))
+
+
+@app.route("/registrar.json", methods=['GET'])
+def registrar():
+    return jsonify(_registrar)
+
+
+_contracts = json.load(open("build/contracts.json"))
+
+
+@app.route("/contracts.json", methods=['GET'])
+def contracts():
+    return jsonify(_contracts)
+
+
 def load_contract(web3):
     LOG.info("version: {} : {} : {}".format(web3.version.api,
                                             web3.version.node,
                                             web3.version.network))
-    with open("registrar.json") as reg:
-        registry = json.load(reg)
-        with open("build/contracts.json") as f:
-            abis = json.load(f)
-            for _, ctr in registry['deployments'].items():
-                # token[] = dep[]
-                name = list(ctr)[0]
-                addr = ctr[name]
-                abi = abis[name]['abi']
-                # print(name, addr, abi)
-                ct = web3.eth.contract(address=addr, abi=abi)
-                if name == "ScryToken":
-                    token = ct
-                if name == "Scry":
-                    contract = ct
-        return token, contract
+
+    for _, ctr in _registrar['deployments'].items():
+        # token[] = dep[]
+        name = list(ctr)[0]
+        addr = ctr[name]
+        abi = _contracts[name]['abi']
+        # print(name, addr, abi)
+        ct = web3.eth.contract(address=addr, abi=abi)
+        if name == "ScryToken":
+            token = ct
+        if name == "Scry":
+            contract = ct
+    return token, contract
 
 
 with app.app_context():

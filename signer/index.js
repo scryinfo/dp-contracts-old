@@ -2,12 +2,12 @@
 
 const axios = require("axios");
 const Web3 = require("web3");
-const { toWei, toHex, padLeft, hexToBytes } = require("web3-utils");
+const { padLeft } = require("web3-utils");
 const contracts = require("../build/contracts.json");
 const deployments = require("../registrar.json").deployments;
 const provider = new Web3.providers.WebsocketProvider("ws://localhost:8546");
-// const web3 = new Web3(provider);
-const web3 = new Web3();
+const web3 = new Web3(provider);
+// const web3 = new Web3();
 
 // converts { "blockchain..":{"key":"val"}} to {"key":"val"}
 const registry = Object.values(deployments).reduce(
@@ -64,11 +64,18 @@ async function main() {
 
   const createBlock = await openChannel2(10, buyer, seller, 1, 1);
   console.info("opened @:", createBlock);
+
   const ba = await buyerAuthorization(buyer, seller, createBlock, 10);
   console.info("ba:", ba);
   const va = await verifierAuthorization(seller, verifier, cid);
   console.info("va:", va);
-  const closed = await closeChannel(
+
+  const ba2 = await buyerAuthorization2(buyer, seller, createBlock, 10);
+  console.info("ba:", ba2);
+  const va2 = await verifierAuthorization2(seller, verifier, cid);
+  console.info("va:", va2);
+
+  const closed = await closeChannel2(
     buyer,
     seller,
     verifier,
@@ -127,6 +134,42 @@ async function sendTokenFromCoinbase(coinbase, address) {
   // console.info("token receipt:", receipt1);
 }
 
+const chainId = 17;
+const gasPrice = 0;
+
+async function signAndSend(from, to, gas, payload) {
+  const sender = from.address;
+  const { data: { nonce } } = await axios.get(
+    `http://localhost:5000/nonce/${sender}`
+  );
+  // const { nonce } = nonceInfo.data;
+  console.info(`nonce ${nonce} for acct: ${sender}`);
+  console.info(`from: ${sender} to: ${to}`);
+  const tx = {
+    chainId,
+    gasPrice,
+    nonce,
+    from: sender,
+    to,
+    gas,
+    data: payload
+  };
+  console.info(`tx: ${JSON.stringify(tx)}`);
+
+  const key = from.privateKey;
+  console.info(`key: ${key}`);
+  const signed = await web3.eth.accounts.signTransaction(tx, key);
+  console.info("signed", signed);
+
+  const resp = await axios({
+    method: "post",
+    url: "http://localhost:5000/rawTx",
+    data: { data: signed.rawTransaction }
+  });
+  console.info("resp:", resp.data);
+  return resp.data.create_block;
+}
+
 async function openChannel2(amount, buyer, seller, reward, verifiers) {
   // console.info("buyer tokens:", await tokenBalance(buyer.address));
   // console.info("seller tokens:", await tokenBalance(seller.address));
@@ -142,43 +185,7 @@ async function openChannel2(amount, buyer, seller, reward, verifiers) {
     .transfer(contract._address, amount, hx)
     .encodeABI();
 
-  const chainInfo = await axios.get("http://localhost:5000/chainInfo");
-  const { gasPrice, chainId } = chainInfo.data;
-
-  const nonceInfo = await axios.get(
-    `http://localhost:5000/nonce/${buyer.address}`
-  );
-  const { nonce } = nonceInfo.data;
-  console.info(gasPrice, chainId, nonce);
-
-  const tx = {
-    chainId: chainId,
-    gasPrice: gasPrice,
-    nonce: nonce,
-    from: buyer.address,
-    to: token._address,
-    gas: 198579,
-    data: payload
-  };
-  console.info(`tx: ${JSON.stringify(tx)}`);
-  console.info(`key: ${buyer.privateKey}`);
-
-  const signed = await web3.eth.accounts.signTransaction(tx, buyer.privateKey);
-  console.info("signed", signed);
-
-  const resp = await axios({
-    method: "post",
-    url: "http://localhost:5000/rawTx",
-    data: {
-      data: signed.rawTransaction
-    }
-  });
-  if (resp.status != 200) {
-    console.error("error:", resp.statusText);
-    return resp.statusText;
-  }
-  console.info("resp:", resp.data);
-  return resp.data.create_block;
+  return signAndSend(buyer, token._address, 198579, payload);
 }
 
 async function openChannel(amount, buyer, seller, reward, verifiers) {
@@ -210,16 +217,45 @@ async function openChannel(amount, buyer, seller, reward, verifiers) {
   return receipt.blockNumber;
 }
 
-async function closeChannel(
-  buyer,
-  seller,
-  verifier,
-  createBlock,
-  cid,
-  amount,
-  balanceSig,
-  verifySig
-) {
+async function closeChannel2(...params) {
+  console.info("close", params);
+  const [
+    buyer,
+    seller,
+    verifier,
+    createBlock,
+    cid,
+    amount,
+    balanceSig,
+    verifySig
+  ] = params;
+  const payload = contract.methods
+    .close(
+      buyer.address,
+      createBlock,
+      amount,
+      balanceSig,
+      verifier.address,
+      cid,
+      verifySig
+    )
+    .encodeABI();
+  console.info(`payload: ${payload}`);
+  return signAndSend(seller, contract._address, 315058, payload);
+}
+
+async function closeChannel(...params) {
+  console.info("close", params);
+  const [
+    buyer,
+    seller,
+    verifier,
+    createBlock,
+    cid,
+    amount,
+    balanceSig,
+    verifySig
+  ] = params;
   const payload = contract.methods
     .close(
       buyer.address,
@@ -231,6 +267,7 @@ async function closeChannel(
       verifySig
     )
     .encodeABI();
+  console.info(`payload: ${payload}`);
   const nonce = await web3.eth.getTransactionCount(seller.address);
   const tx = {
     nonce: nonce,
@@ -240,6 +277,7 @@ async function closeChannel(
     data: payload
   };
   const signed = await web3.eth.accounts.signTransaction(tx, seller.privateKey);
+  console.info("signed:", signed);
   const receipt = await web3.eth.sendSignedTransaction(signed.rawTransaction);
   console.info("tfr:", receipt);
   console.info("seller tokens:", await tokenBalance(seller.address));
@@ -258,6 +296,20 @@ async function verifierAuthorization(seller, verifier, cid) {
     .getVerifyMessage(seller.address, cid)
     .call();
   return web3.eth.accounts.sign(msg, verifier.privateKey);
+}
+
+async function buyerAuthorization2(buyer, seller, createBlock, amount) {
+  const key = buyer.privateKey;
+  const msg = `Receiver: ${
+    seller.address
+  }, Balance: ${amount}, At Block: ${createBlock}`;
+  return web3.eth.accounts.sign(msg, key);
+}
+
+async function verifierAuthorization2(seller, verifier, cid) {
+  const key = verifier.privateKey;
+  const msg = `Owner: ${seller.address}, For CID: ${cid}`;
+  return web3.eth.accounts.sign(msg, key);
 }
 
 main().catch(error => {

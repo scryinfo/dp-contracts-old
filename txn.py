@@ -8,9 +8,6 @@ LOG = logging.getLogger('app')
 class TransactionFailed(Exception):
     status_code = 400
 
-    def __init__(self, gas, gasUsed):
-        Exception.__init__(self)
-
 
 def check_txn(web3, txid):
     LOG.info("waiting for: {}".format(txid))
@@ -23,5 +20,5 @@ def check_txn(web3, txid):
         return receipt
     # 0 for fail with REVERT (for THROW gasused == gas)
     txinfo = web3.eth.getTransaction(txid)
-    LOG.info("txn: {}".format(txinfo))
+    LOG.warn("failed: {}".format(txinfo))
     raise TransactionFailed(txinfo['gas'], receipt['gasUsed'])

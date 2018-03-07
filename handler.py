@@ -78,6 +78,12 @@ def run_app(app, web3, token, contract, ipfs):
         resp.status_code = 400
         return resp
 
+    @app.errorhandler(ops.UnknownChannelError)
+    def unknown_channel(error):
+        resp = jsonify({'error': 'channel does not exist'})
+        resp.status_code = 400
+        return resp
+
     @app.errorhandler(ConstraintError)
     def constraint_error(error):
         message = {
@@ -293,6 +299,11 @@ def run_app(app, web3, token, contract, ipfs):
 
         return jsonify(res)
 
+    @app.route('/history/<id>', methods=['GET'])
+    def history_id(id):
+        po = PurchaseOrder.get(PurchaseOrder.id == id)
+        return jsonify(model_to_dict(po))
+
     # create channel to seller
     @app.route('/buyer/purchase', methods=['POST'])
     def channel():
@@ -360,6 +371,7 @@ def run_app(app, web3, token, contract, ipfs):
         LOG.info("close: {}".format(data))
         # get  order ID
         po = PurchaseOrder.get(PurchaseOrder.id == data['id'])
+        LOG.info("close: {}".format(po))
 
         if (po.needs_verification):
             raise ConstraintError("Order needs Verification")

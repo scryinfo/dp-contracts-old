@@ -1,11 +1,18 @@
 import logging
 
+import web3
+import inspect
+
 from txn import check_txn
 
 LOG = logging.getLogger('app')
 
 
 class BalanceVerificationError(Exception):
+    status_code = 400
+
+
+class UnknownChannelError(Exception):
     status_code = 400
 
 
@@ -46,7 +53,10 @@ def account_balance(web3, account, token):
 
 
 def channel_info(contract, buyer, seller, open_block):
-    return contract.call().getChannelInfo(buyer, seller, open_block)
+    try:
+        return contract.call().getChannelInfo(buyer, seller, open_block)
+    except web3.exceptions.BadFunctionCallOutput:
+        raise UnknownChannelError()
 
 
 def open_channel(web3, amount, buyer, seller, reward, num_verifiers, token, contract):
@@ -69,6 +79,7 @@ def open_channel(web3, amount, buyer, seller, reward, num_verifiers, token, cont
 
 
 def close_channel(web3, buyer, seller, verifier, create_block, cid, amount, balance_sig, verify_sig, contract):
+    LOG.info(inspect.getargvalues(inspect.currentframe()))
     amount = int(amount)
     create_block = int(create_block)
     LOG.info("close channel amount:{} from:{} to:{}".format(
@@ -82,10 +93,10 @@ def close_channel(web3, buyer, seller, verifier, create_block, cid, amount, bala
     }).close(buyer,
              create_block,
              amount,
-             bytes.fromhex(balance_sig),
+             bytes.fromhex(balance_sig[2:]),
              verifier,
              cid,
-             bytes.fromhex(verify_sig))
+             bytes.fromhex(verify_sig[2:]))
     receipt = check_txn(web3, txid)
     return {'close_block': receipt['blockNumber'], 'cid': cid}
 

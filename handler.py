@@ -137,7 +137,6 @@ def run_app(app, web3, token, contract, ipfs):
 
     def on_settle(args):
         notify(args)
-        # LOG.info("EVENT settlement: {}".format(args))
 
     token.on('Transfer', {}, on_transfer)
     contract.on('ChannelCreated', {}, on_channel)
@@ -196,11 +195,6 @@ def run_app(app, web3, token, contract, ipfs):
         # load post json
         data = json.loads(request.data)
         LOG.info("new trader: {}".format(data))
-        ret = provider.make_request("parity_newAccountFromSecret", params=[
-                                    "0x" + data['password'], "asdf"])
-        if ret['result'] != data['account']:
-            raise Exception(
-                "saved account is not the same, ret: {}, data:{}".format(ret, data))
 
         # bootstrap new account with some ether
         ops.send_eth(web3, owner, data['account'], 1)
@@ -367,40 +361,22 @@ def run_app(app, web3, token, contract, ipfs):
 
     @app.route('/seller/close', methods=['POST'])
     def close():
-        data = json.loads(request.data)
-        LOG.info("close: {}".format(data))
+        js = json.loads(request.data)
+        LOG.info("close: {}".format(js))
         # get  order ID
-        po = PurchaseOrder.get(PurchaseOrder.id == data['id'])
-        LOG.info("close: {}".format(po))
+        po = PurchaseOrder.get(PurchaseOrder.id == js['id'])
 
         if (po.needs_verification):
             raise ConstraintError("Order needs Verification")
         if (po.needs_closure is False):
             raise ConstraintError("Order has already been Closed")
 
-        buyer_cs = to_checksum_address(
-            po.buyer.account)  # checksum address for eth
-        owner_cs = to_checksum_address(po.listing.owner.account)
-
-        listing = po.listing
-        if po.verifier:
-            verifier_auth = po.verifier_auth
-            verifier_cs = to_checksum_address(po.verifier.account)
-        else:
-            verifier_cs = to_checksum_address(accounts['verifier'])
-            auth_verifier = ops.verifier_authorization(
-                web3, owner_cs, verifier_cs, listing.cid, contract)
-            verifier_auth = auth_verifier['verification_sig']
-
-        ret = ops.close_channel(web3, buyer_cs, owner_cs,
-                                verifier_cs, po.create_block,
-                                listing.cid, listing.price,
-                                po.buyer_auth, verifier_auth, contract)
+        receipt = ops.raw_txn(web3, js['data'])
 
         po.needs_closure = False
 
         po.save()
-        return jsonify(model_to_dict(po, exclude=[Listing.cid]))
+        return jsonify({'create_block': receipt['blockNumber'], 'purchase': model_to_dict(po)})
 
     @app.route('/rawTx', methods=['POST'])
     def rawTx():

@@ -18,7 +18,7 @@ class UnknownChannelError(Exception):
 
 def send_eth(web3, sender, receiver, value):
     txid = web3.eth.sendTransaction(
-        {'from': sender, 'to': receiver, 'value': value})
+        {'from': sender, 'to': receiver, 'value': web3.toWei(value, "ether")})
     return check_txn(web3, txid)
 
 
@@ -48,7 +48,7 @@ def send_token(web3, token, sender, receiver, amount):
 def account_balance(web3, account, token):
     return {
         'balance': token.call().balanceOf(account),
-        'eth': web3.eth.getBalance(account)
+        'eth': web3.fromWei(web3.eth.getBalance(account), "ether")
     }
 
 

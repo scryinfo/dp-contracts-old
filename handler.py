@@ -147,12 +147,8 @@ def run_app(app, web3, token, contract, ipfs):
 
     # names => addresses
     accounts = {}
-    acc = provider.make_request("parity_allAccountsInfo", params=[])
-    for address, value in acc["result"].items():
-        name = value["name"]
-        LOG.info("{}:{}".format(name, address))
-        accounts[name] = address
     # addresses => names
+    accounts['owner'] = web3.eth.coinbase
     addresses = {v: k for k, v in accounts.items()}
 
     owner = to_checksum_address(accounts['owner'])
@@ -178,7 +174,7 @@ def run_app(app, web3, token, contract, ipfs):
                         'event': msg['event'],
                         'args': out,
                         'block': msg['blockNumber']
-                    }))
+                    }, default=json_serial))
             except GeneratorExit:
                 subscriptions.remove(q)
 
@@ -196,9 +192,6 @@ def run_app(app, web3, token, contract, ipfs):
         data = json.loads(request.data)
         LOG.info("new trader: {}".format(data))
 
-        # bootstrap new account with some ether
-        ops.send_eth(web3, owner, data['account'], 1)
-
         trader = Trader(name=data['username'], account=data['account'])
         trader.save()
         return jsonify(model_to_dict(trader))
@@ -214,6 +207,10 @@ def run_app(app, web3, token, contract, ipfs):
     def fund():
         trader = Trader.get(Trader.account == request.args.get('account'))
         account = to_checksum_address(trader.account)
+
+        # bootstrap new account with some ether
+        ops.send_eth(web3, owner, account, 0.1)
+
         amount = int(request.args.get('amount'))
         LOG.info("fund amount:{} from:{} to:{}".format(
             amount, owner, account))
@@ -236,39 +233,6 @@ def run_app(app, web3, token, contract, ipfs):
         token_balance = ops.account_balance(web3, buyer.account, token)
         if (listing.price > token_balance['balance']):
             raise ConstraintError("Buyer does not have enough tokens")
-
-    @app.route('/purchase', methods=['POST'])
-    def purchase():
-        data = json.loads(request.data)
-        LOG.info("purchase: {}".format(data))
-        # verify parameters
-        buyer_id = data['buyer']
-        buyer = Trader.get(Trader.account == buyer_id)
-        listing_id = data['id']
-        listing = Listing.get(Listing.id == listing_id)
-
-        check_purchase(buyer, accounts['verifier'], listing)
-
-        owner_cs = to_checksum_address(listing.owner.account)
-        buyer_cs = to_checksum_address(buyer_id)  # checksum address for eth
-        ch = ops.open_channel(web3, listing.price, buyer_cs,
-                              owner_cs, 10, 1, token, contract)
-
-        auth_buyer = ops.buyer_authorization(
-            web3, buyer_cs, owner_cs, ch['create_block'], listing.price, contract)
-        auth_verifier = ops.verifier_authorization(
-            web3, owner_cs, accounts['verifier'], listing.cid, contract)
-        ret = ops.close_channel(web3, buyer_cs, owner_cs,
-                                accounts['verifier'], ch['create_block'],
-                                listing.cid, listing.price,
-                                auth_buyer['balance_sig'], auth_verifier['verification_sig'], contract)
-
-        purchased = PurchaseOrder(buyer=buyer, listing=listing, create_block=ch['create_block'],
-                                  needs_verification=False, needs_closure=False,
-                                  buyer_auth=auth_buyer['balance_sig'],
-                                  verifier_auth=auth_verifier['verification_sig'])
-        purchased.save()
-        return jsonify(ret)
 
     @app.route('/history', methods=['GET'])
     def history():
@@ -437,6 +401,7 @@ def run_app(app, web3, token, contract, ipfs):
             name = request.args.get('name')
             listing = Listing(cid=cid, size=size,
                               owner=seller, name=name, price=price)
+            LOG.info("listing created: {}".format(listing))
         else:
             if 'data' in request.files:
                 f = request.files['data']

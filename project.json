@@ -34,8 +34,7 @@
         "provider": {
           "class": "web3.providers.ipc.IPCProvider",
           "settings": {
-            "ipc_path":
-              "/Users/me/Library/Application Support/io.parity.ethereum/jsonrpc.ipc"
+            "ipc_path": "chains/p/chain_data/jsonrpc.ipc"
           }
         }
       },

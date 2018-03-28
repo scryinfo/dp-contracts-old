@@ -1,13 +1,22 @@
 import datetime
 from peewee import *
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 
 db = SqliteDatabase('scry.db')
 
 
-class Trader(Model):
+class Trader(UserMixin, Model):
     name = CharField(unique=True)
     account = CharField()
     created_at = TimestampField(utc=True)
+    password_hash = CharField(128)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
     class Meta:
         database = db

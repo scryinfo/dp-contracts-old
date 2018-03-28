@@ -1,14 +1,17 @@
 import sys
 import logging
+
 from flask import Flask, current_app, jsonify
 from flask.logging import PROD_LOG_FORMAT
 from flask_cors import CORS
+from flask_login import LoginManager
+
 from populus import Project
 import ipfsapi
 import simplejson as json
 
 from handler import run_app
-from model import db
+from model import db, Listing
 
 if __name__ == '__main__':
     from gevent import monkey
@@ -31,9 +34,17 @@ LOG.info("connected to IPFS: {}".format(ipfs.id()['ID']))
 
 app = Flask(__name__)
 # 1G file upload limit
-app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
+app.config.update(MAX_CONTENT_LENGTH=1024 * 1024 * 1024)
+# session
+app.config.update(SECRET_KEY=b'\xd2>i\xbfDv\n29\x15\xe7\x827OZ\x03')
+# allow login with remember-me
+login_manager = LoginManager()
+login_manager.session_protection = "strong"
+login_manager.init_app(app)
 # allow all domains on all routes
 CORS(app)
+
+app.config.from_envvar('APP_SETTINGS', silent=True)
 
 
 @app.before_request
@@ -45,6 +56,11 @@ def before_request():
 def after_request(response):
     db.close()
     return response
+
+
+@login_manager.user_loader
+def load_user(id):
+    return Listing.query.get(int(id))
 
 
 _registrar = json.load(open("registrar.json"))
@@ -92,7 +108,7 @@ with app.app_context():
         LOG.info('token:{}'.format(token.address))
         LOG.info('contract:{}'.format(contract.address))
 
-        run_app(current_app, chain.web3, token, contract, ipfs)
+        run_app(current_app, chain.web3, token, contract, ipfs, login_manager)
 
 if __name__ == '__main__':
     from gevent.wsgi import WSGIServer

@@ -4,6 +4,10 @@ import copy
 from datetime import date, datetime
 
 from flask import stream_with_context, request, jsonify, make_response, abort, Response
+from flask_login import current_user, login_user, logout_user, login_required
+
+import werkzeug
+
 import simplejson as json
 from gevent import queue
 
@@ -47,78 +51,59 @@ def json_serial(obj):
     raise TypeError("Type %s not serializable" % type(obj))
 
 
-def run_app(app, web3, token, contract, ipfs):
+def run_app(app, web3, token, contract, ipfs, login_manager):
 
-    @app.errorhandler(TransactionFailed)
-    def transaction_failed(error):
-        message = {
-            'message': 'Transaction Failed',
-        }
-        resp = jsonify(message)
-        resp.status_code = error.status_code
-        return resp
-
-    @app.errorhandler(IntegrityError)
-    def integrity_error(error):
-        msg = 'Save Error: {}'.format(error)
+    def json_err(msg, code):
         message = {
             'message': msg,
         }
-        LOG.info(msg)
         resp = jsonify(message)
-        resp.status_code = 400
+        resp.status_code = code
         return resp
+
+    @app.errorhandler(TransactionFailed)
+    def transaction_failed(error):
+        return json_err('Transaction Failed', error.status_code)
+
+    @app.errorhandler(IntegrityError)
+    def integrity_error(error):
+        return json_err('Save Error: {}'.format(error), 400)
 
     @app.errorhandler(ops.BalanceVerificationError)
     def balance_error(error):
-        message = {
-            'verification': '{}'.format(error),
-        }
-        resp = jsonify(message)
-        resp.status_code = 400
-        return resp
+        return json_err('verification: {}'.format(error), 400)
 
     @app.errorhandler(ops.UnknownChannelError)
     def unknown_channel(error):
-        resp = jsonify({'error': 'channel does not exist'})
-        resp.status_code = 400
-        return resp
+        return json_err('channel does not exist', 400)
 
     @app.errorhandler(ConstraintError)
     def constraint_error(error):
-        message = {
-            'error': '{}'.format(error),
-        }
-        resp = jsonify(message)
-        resp.status_code = 400
-        return resp
+        return json_err('{}'.format(error), 400)
 
     @app.errorhandler(Trader.DoesNotExist)
     def missing_trader(error):
-        message = {
-            'error': 'Trader does not exist',
-        }
-        resp = jsonify(message)
-        resp.status_code = 400
-        return resp
+        return json_err('Trader does not exist', 400)
 
     @app.errorhandler(Listing.DoesNotExist)
     def missing_listing(error):
-        message = {
-            'error': 'Listing does not exist',
-        }
-        resp = jsonify(message)
-        resp.status_code = 400
-        return resp
+        return json_err('Listing does not exist', 400)
 
     @app.errorhandler(PurchaseOrder.DoesNotExist)
     def missing_po(error):
-        message = {
-            'error': 'Purchase does not exist',
-        }
-        resp = jsonify(message)
-        resp.status_code = 400
-        return resp
+        return json_err('Purchase does not exist', 400)
+
+    @app.errorhandler(werkzeug.exceptions.BadRequest)
+    def handle_bad_request(e):
+        return json_err('bad request!', 400)
+
+    @app.errorhandler(werkzeug.exceptions.Unauthorized)
+    def handle_unauthorized_request(e):
+        return json_err('Unauthorized', 401)
+
+    @app.errorhandler(KeyError)
+    def handle_key_error(e):
+        return json_err('missing parameter: {}'.format(e), 400)
 
     # list of gevent Queues
     subscriptions = []
@@ -157,8 +142,38 @@ def run_app(app, web3, token, contract, ipfs):
     # contract address needs to be visible to events
     addresses[contract.address] = 'contract'
 
+    @app.route('/login', methods=['POST'])
+    def login():
+        if current_user.is_authenticated:
+            return 'already logged in'
+        data = request.get_json()
+        user = Trader.select().where(Trader.name == data['username']).first()
+        if user is None or not user.check_password(data['password']):
+            return 'bad password'
+        login_user(user, remember=data.get('remember_me', False))
+        return 'logged in'
+
+    @app.route('/logout')
+    @login_required
+    def logout():
+        logout_user()
+
+    @app.route('/signup', methods=['POST'])
+    def signup():
+        # load post json
+        data = json.loads(request.data)
+        user = Trader.select().where(Trader.name == data['username']).first()
+        if user is not None:
+            raise ConstraintError("User already exists")
+        trader = Trader(name=data['username'], account=data['account'])
+        trader.set_password(password=data['password'])
+        trader.save()
+        LOG.info("new trader: {}".format(trader))
+        return jsonify(model_to_dict(trader))
+
     # subscribe
     @app.route("/subscribe")
+    @login_required
     def subscribe():
         def gen():
             q = queue.Queue()
@@ -183,27 +198,21 @@ def run_app(app, web3, token, contract, ipfs):
     def trader_details(trader):
         return {**model_to_dict(trader), **ops.account_balance(web3, trader.account, token)}
 
-    @app.route('/trader', methods=['GET',  'POST'])
+    @app.route('/trader', methods=['GET'])
+    @login_required
     def members():
-        if request.method == 'GET':
-            return jsonify([trader_details(trader) for trader in Trader.select()])
-
-        # load post json
-        data = json.loads(request.data)
-        LOG.info("new trader: {}".format(data))
-
-        trader = Trader(name=data['username'], account=data['account'])
-        trader.save()
-        return jsonify(model_to_dict(trader))
+        return jsonify([trader_details(trader) for trader in Trader.select()])
 
     # check balance
     @app.route('/balance')
+    @login_required
     def balance():
         account = to_checksum_address(request.args.get('account'))
         return jsonify(ops.account_balance(web3, account, token))
 
     # fund participant
     @app.route('/fund')
+    @login_required
     def fund():
         trader = Trader.get(Trader.account == request.args.get('account'))
         account = to_checksum_address(trader.account)
@@ -235,6 +244,7 @@ def run_app(app, web3, token, contract, ipfs):
             raise ConstraintError("Buyer does not have enough tokens")
 
     @app.route('/history', methods=['GET'])
+    @login_required
     def history():
         res = []
         buyer_id = request.args.get('buyer')
@@ -258,12 +268,14 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(res)
 
     @app.route('/history/<id>', methods=['GET'])
+    @login_required
     def history_id(id):
         po = PurchaseOrder.get(PurchaseOrder.id == id)
         return jsonify(model_to_dict(po))
 
     # create channel to seller
     @app.route('/buyer/purchase', methods=['POST'])
+    @login_required
     def channel():
         data = json.loads(request.data)
         LOG.info("purchase: {}".format(data))
@@ -296,6 +308,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/verifier/sign', methods=['POST'])
+    @login_required
     def verify():
         data = json.loads(request.data)
         LOG.info("verify: {}".format(data))
@@ -324,6 +337,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(model_to_dict(po, exclude=[Listing.cid]))
 
     @app.route('/seller/close', methods=['POST'])
+    @login_required
     def close():
         js = json.loads(request.data)
         LOG.info("close: {}".format(js))
@@ -343,6 +357,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify({'create_block': receipt['blockNumber'], 'purchase': model_to_dict(po)})
 
     @app.route('/rawTx', methods=['POST'])
+    @login_required
     def rawTx():
         js = json.loads(request.data)
         LOG.info("raw request: {}".format(js))
@@ -351,6 +366,7 @@ def run_app(app, web3, token, contract, ipfs):
 
     # chainId, gasPrice
     @app.route('/chainInfo', methods=['GET'])
+    @login_required
     def chainInfo():
         return jsonify({
             'gasPrice': ops.gas_price(web3),
@@ -359,6 +375,7 @@ def run_app(app, web3, token, contract, ipfs):
 
     # nonce
     @app.route('/nonce/<account>', methods=['GET'])
+    @login_required
     def nonce(account):
         account = to_checksum_address(account)
         return jsonify({
@@ -366,11 +383,13 @@ def run_app(app, web3, token, contract, ipfs):
         })
 
     @app.route('/listing/<id>', methods=['GET'])
+    @login_required
     def listing(id):
         res = Listing.get(Listing.id == id)
         return jsonify(model_to_dict(res))
 
     @app.route('/listings', methods=['GET'])
+    @login_required
     def sale_items():
         owner = request.args.get("owner", None)
         res = []
@@ -390,6 +409,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(res)
 
     @app.route('/seller/upload', methods=['POST'])
+    @login_required
     def upload_file():
         seller_id = request.args.get('account')
         seller = Trader.get(Trader.account == seller_id)
@@ -423,6 +443,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify(m2dict)
 
     @app.route('/seller/download', methods=['GET'])
+    @login_required
     def download_file():
         cid = request.args.get('CID')
         raw_bytes = ''
@@ -437,6 +458,7 @@ def run_app(app, web3, token, contract, ipfs):
         return response
 
     @app.route("/seller/verify_balance")
+    @login_required
     def verify_balance():
         buyer = request.args.get('buyer')
         seller = request.args.get('seller')
@@ -449,6 +471,7 @@ def run_app(app, web3, token, contract, ipfs):
         return jsonify({'verification': 'OK'})
 
     @app.route("/info/channel", methods=['GET'])
+    @login_required
     def info_channel():
         po = PurchaseOrder.get(PurchaseOrder.id == request.args.get('id'))
         # checksum address for eth

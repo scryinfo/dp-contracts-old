@@ -145,13 +145,15 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     @app.route('/login', methods=['POST'])
     def login():
         if current_user.is_authenticated:
-            return 'already logged in'
+            raise ConstraintError('already logged in')
         data = request.get_json()
-        user = Trader.select().where(Trader.name == data['username']).first()
-        if user is None or not user.check_password(data['password']):
-            return 'bad password'
-        login_user(user, remember=data.get('remember_me', False))
-        return 'logged in'
+        trader = Trader.select().where(Trader.name == data['username']).first()
+        if trader is None or not trader.check_password(data['password']):
+            raise ConstraintError('bad password')
+        if not trader.account == data['account']:
+            raise ConstraintError('incorrect account')
+        login_user(trader, remember=data.get('remember_me', False))
+        return jsonify(model_to_dict(trader))
 
     @app.route('/logout', methods=['POST'])
     @login_required

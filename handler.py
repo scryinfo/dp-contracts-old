@@ -153,7 +153,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         login_user(user, remember=data.get('remember_me', False))
         return 'logged in'
 
-    @app.route('/logout')
+    @app.route('/logout', methods=['POST'])
     @login_required
     def logout():
         logout_user()

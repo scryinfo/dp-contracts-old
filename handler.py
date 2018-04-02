@@ -148,7 +148,9 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             raise ConstraintError('already logged in')
         data = request.get_json()
         trader = Trader.select().where(Trader.name == data['username']).first()
-        if trader is None or not trader.check_password(data['password']):
+        if trader is None:
+            raise ConstraintError('user does not exist')
+        if not trader.check_password(data['password']):
             raise ConstraintError('bad password')
         login_user(trader, remember=data.get('remember_me', False))
         return jsonify(model_to_dict(trader))

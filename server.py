@@ -42,7 +42,7 @@ login_manager = LoginManager()
 login_manager.session_protection = "strong"
 login_manager.init_app(app)
 # allow all domains on all routes
-CORS(app)
+CORS(app, supports_credentials=True)
 
 app.config.from_envvar('APP_SETTINGS', silent=True)
 

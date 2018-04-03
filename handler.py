@@ -166,6 +166,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         # create token
         payload = {
             'user_id': trader.id,
+            'name': trader.name,
             'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
         }
         jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)

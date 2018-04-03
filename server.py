@@ -1,17 +1,19 @@
 import sys
 import logging
 
-from flask import Flask, current_app, jsonify
+from flask import Flask, current_app, jsonify, g
+from flask.sessions import SecureCookieSessionInterface
 from flask.logging import PROD_LOG_FORMAT
 from flask_cors import CORS
-from flask_login import LoginManager
+from flask_login import LoginManager, user_loaded_from_header
+import jwt
 
 from populus import Project
 import ipfsapi
 import simplejson as json
 
 from handler import run_app
-from model import db, Listing
+from model import db, Trader
 
 if __name__ == '__main__':
     from gevent import monkey
@@ -41,6 +43,18 @@ app.config.update(SECRET_KEY=b'\xd2>i\xbfDv\n29\x15\xe7\x827OZ\x03')
 login_manager = LoginManager()
 login_manager.session_protection = "strong"
 login_manager.init_app(app)
+# dont use cookies
+
+
+class CustomSessionInterface(SecureCookieSessionInterface):
+    """Prevent creating session from API requests."""
+
+    def save_session(self, *args, **kwargs):
+        return
+
+
+app.session_interface = CustomSessionInterface()
+
 # allow all domains on all routes
 CORS(app, supports_credentials=True)
 
@@ -58,9 +72,14 @@ def after_request(response):
     return response
 
 
-@login_manager.user_loader
-def load_user(id):
-    return Listing.query.get(int(id))
+@login_manager.header_loader
+def load_user_from_header(header_val):
+    LOG.info('hdr: {}'.format(header_val))
+    try:
+        header_val = jwt.decode(header_val, 'secret', algorithms=['HS256'])
+    except TypeError:
+        pass
+    return Trader.get(Trader.id == int(header_val['user_id']))
 
 
 _registrar = json.load(open("registrar.json"))

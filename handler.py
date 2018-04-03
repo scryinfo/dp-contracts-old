@@ -22,6 +22,13 @@ from model import Listing, Trader, PurchaseOrder
 from txn import TransactionFailed
 import ops
 
+from datetime import datetime, timedelta
+import jwt
+
+JWT_SECRET = 'secret'
+JWT_ALGORITHM = 'HS256'
+JWT_EXP_DELTA_SECONDS = 60*60
+
 LOG = logging.getLogger('app')
 
 
@@ -60,6 +67,10 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         resp = jsonify(message)
         resp.status_code = code
         return resp
+
+    @app.errorhandler(jwt.exceptions.ExpiredSignatureError)
+    def signature_expired(error):
+        return json_err('Signature has expired', 401)
 
     @app.errorhandler(TransactionFailed)
     def transaction_failed(error):
@@ -152,13 +163,22 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             raise ConstraintError('user does not exist')
         if not trader.check_password(data['password']):
             raise ConstraintError('bad password')
-        login_user(trader, remember=data.get('remember_me', False))
-        return jsonify(model_to_dict(trader))
+        # create token
+        payload = {
+            'user_id': trader.id,
+            'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+        }
+        jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
+        dictT = model_to_dict(trader)
+        del dictT["password_hash"]
+        dictT["token"] = jwt_token
+        return jsonify(dictT)
 
     @app.route('/logout', methods=['POST'])
     @login_required
     def logout():
         logout_user()
+        return jsonify({'message': 'logged out'})
 
     @app.route('/signup', methods=['POST'])
     def signup():
@@ -171,7 +191,9 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         trader.set_password(password=data['password'])
         trader.save()
         LOG.info("new trader: {}".format(trader))
-        return jsonify(model_to_dict(trader))
+        dictT = model_to_dict(trader)
+        del dictT["password_hash"]
+        return jsonify(dictT)
 
     # subscribe
     @app.route("/subscribe")

@@ -72,6 +72,10 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     def signature_expired(error):
         return json_err('Signature has expired', 401)
 
+    @app.errorhandler(jwt.exceptions.DecodeError)
+    def bad_signature(error):
+        return json_err('Token is invalid', 401)
+
     @app.errorhandler(TransactionFailed)
     def transaction_failed(error):
         return json_err('Transaction Failed', error.status_code)
@@ -153,6 +157,16 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     # contract address needs to be visible to events
     addresses[contract.address] = 'contract'
 
+    def newToken(trader):
+        # create token
+        payload = {
+            'user_id': trader.id,
+            'name': trader.name,
+            'account': trader.account,
+            'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+        }
+        return jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
+
     @app.route('/login', methods=['POST'])
     def login():
         if current_user.is_authenticated:
@@ -163,16 +177,9 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             raise ConstraintError('user does not exist')
         if not trader.check_password(data['password']):
             raise ConstraintError('bad password')
-        # create token
-        payload = {
-            'user_id': trader.id,
-            'name': trader.name,
-            'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
-        }
-        jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
         dictT = model_to_dict(trader)
         del dictT["password_hash"]
-        dictT["token"] = jwt_token
+        dictT["token"] = newToken(trader)
         return jsonify(dictT)
 
     @app.route('/logout', methods=['POST'])
@@ -194,6 +201,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         LOG.info("new trader: {}".format(trader))
         dictT = model_to_dict(trader)
         del dictT["password_hash"]
+        dictT["token"] = newToken(trader)
         return jsonify(dictT)
 
     # subscribe

@@ -74,11 +74,7 @@ def after_request(response):
 
 @login_manager.header_loader
 def load_user_from_header(header_val):
-    LOG.info('hdr: {}'.format(header_val))
-    try:
-        header_val = jwt.decode(header_val, 'secret', algorithms=['HS256'])
-    except TypeError:
-        pass
+    header_val = jwt.decode(header_val, 'secret', algorithms=['HS256'])
     return Trader.get(Trader.id == int(header_val['user_id']))
 
 

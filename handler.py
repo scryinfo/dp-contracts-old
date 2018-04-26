@@ -229,8 +229,6 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         return Response(stream_with_context(gen()), mimetype="text/event-stream")
 
     def trader_details(trader):
-        LOG.info("details: {}".format(model_to_dict(
-            trader, exclude=[Trader.password_hash])))
         return {**model_to_dict(trader, exclude=[Trader.password_hash]), **ops.account_balance(web3, trader.account, token)}
 
     @app.route('/trader', methods=['GET'])

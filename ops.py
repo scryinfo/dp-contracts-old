@@ -46,6 +46,8 @@ def send_token(web3, token, sender, receiver, amount):
 
 
 def account_balance(web3, account, token):
+    if not web3.isAddress(account):
+        return {}
     return {
         'balance': token.call().balanceOf(account),
         'eth': web3.fromWei(web3.eth.getBalance(account), "ether")

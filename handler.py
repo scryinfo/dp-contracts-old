@@ -16,7 +16,6 @@ from peewee import IntegrityError
 
 from eth_utils import to_checksum_address
 import rlp
-from ethereum.transactions import Transaction
 
 from model import Listing, Trader, PurchaseOrder
 from txn import TransactionFailed

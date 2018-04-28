@@ -1,6 +1,5 @@
 import logging
 
-from populus.utils.wait import wait_for_transaction_receipt
 
 LOG = logging.getLogger('app')
 
@@ -11,7 +10,7 @@ class TransactionFailed(Exception):
 
 def check_txn(web3, txid):
     LOG.info("waiting for: {}".format(txid))
-    receipt = wait_for_transaction_receipt(web3, txid)
+    receipt = web3.eth.waitForTransactionReceipt(txid)
     LOG.info("receipt: {}".format(receipt))
     # post BZ : status is 1 for success
     if receipt.status == '0x1':

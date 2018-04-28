@@ -60,7 +60,7 @@ class PurchaseOrder(Model):
 
 def create_tables():
     db.connect()
-    db.create_tables([Listing, Trader, PurchaseOrder], True)
+    db.create_tables([Listing, Trader, PurchaseOrder])
     db.close()
 
 

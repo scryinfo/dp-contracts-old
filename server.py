@@ -3,12 +3,11 @@ import logging
 
 from flask import Flask, current_app, jsonify, g
 from flask.sessions import SecureCookieSessionInterface
-from flask.logging import PROD_LOG_FORMAT
 from flask_cors import CORS
 from flask_login import LoginManager, user_loaded_from_header
 import jwt
 
-from populus import Project
+from web3 import Web3, HTTPProvider
 import ipfsapi
 import simplejson as json
 
@@ -23,7 +22,7 @@ LOG = logging.getLogger('app')
 LOG.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
 handler.setLevel(logging.DEBUG)
-handler.setFormatter(logging.Formatter(PROD_LOG_FORMAT))
+# handler.setFormatter(logging.Formatter(LOG_FORMAT))
 LOG.addHandler(handler)
 
 ipfs = {}
@@ -114,16 +113,16 @@ def load_contract(web3):
 
 
 with app.app_context():
-    with Project().get_chain('parity') as chain:
-        if not chain.web3.providers[0].isConnected():
-            LOG.error("Cannot connect to Ethereum")
-            sys.exit(-1)
+    provider = HTTPProvider('http://localhost:8545')
+    if not provider.isConnected():
+        LOG.error("Cannot connect to Ethereum")
+        sys.exit(-1)
+    web3 = Web3(provider)
 
-        token, contract = load_contract(chain.web3)
-        LOG.info('token:{}'.format(token.address))
-        LOG.info('contract:{}'.format(contract.address))
-
-        run_app(current_app, chain.web3, token, contract, ipfs, login_manager)
+    token, contract = load_contract(web3)
+    LOG.info('token:{}'.format(token.address))
+    LOG.info('contract:{}'.format(contract.address))
+    run_app(current_app, web3, token, contract, ipfs, login_manager)
 
 if __name__ == '__main__':
     from gevent.wsgi import WSGIServer

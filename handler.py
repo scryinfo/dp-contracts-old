@@ -272,9 +272,9 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             raise ConstraintError("Buyer must not be same as Seller")
 
         # make sure buyer has enough tokens to cover listing price
-        token_balance = ops.account_balance(web3, buyer.account, token)
-        if (listing.price > token_balance['balance']):
-            raise ConstraintError("Buyer does not have enough tokens")
+        # token_balance = ops.account_balance(web3, buyer.account, token)
+        # if (listing.price > token_balance['balance']):
+            # raise ConstraintError("Buyer does not have enough tokens")
 
     @app.route('/history', methods=['GET'])
     @login_required

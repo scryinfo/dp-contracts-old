@@ -91,14 +91,16 @@ def load_contract(web3):
     except KeyError:
         LOG.error("token not on network")
         raise
-    token = web3.eth.contract(address=address, abi=_token['abi'])
+    token = web3.eth.contract(
+        address=Web3.toChecksumAddress(address), abi=_token['abi'])
 
     try:
         address = _scry['networks'][netversion]['address']
     except KeyError:
         LOG.error("contract not on network")
         raise
-    contract = web3.eth.contract(address=address, abi=_scry['abi'])
+    contract = web3.eth.contract(
+        address=Web3.toChecksumAddress(address), abi=_scry['abi'])
 
     return token, contract
 

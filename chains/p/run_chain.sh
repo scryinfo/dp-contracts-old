@@ -1,4 +1,4 @@
-parity -l own_tx=trace,signer=trace \
+parity -l own_tx=trace,signer=trace,rpc=trace \
     --base-path chains/p/chain_data \
     --config chains/p/parity.toml \
     --chain chains/p/parity.json \

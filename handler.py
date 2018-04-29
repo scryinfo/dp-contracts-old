@@ -137,9 +137,14 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     def on_settle(args):
         notify(args)
 
-    token.on('Transfer', {}, on_transfer)
-    contract.on('ChannelCreated', {}, on_channel)
-    contract.on('ChannelSettled', {}, on_settle)
+    transfersEvents = token.events.Transfer.createFilter(fromBlock='latest')
+    # token.on('Transfer', {}, on_transfer)
+    newChannelEvents = contract.events.ChannelCreated.createFilter(
+        fromBlock='latest')
+    # contract.on('ChannelCreated', {}, on_channel)
+    channelSetteledEvents = contract.events.ChannelSettled.createFilter(
+        fromBlock='latest')
+    # contract.on('ChannelSettled', {}, on_settle)
 
     provider = web3.providers[0]
     # accounts need to be unlocked
@@ -202,6 +207,16 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         del dictT["password_hash"]
         dictT["token"] = newToken(trader)
         return jsonify(dictT)
+
+    @app.route('/contract', methods=['GET'])
+    @login_required
+    def contract_details():
+        return jsonify({'abi': contract.abi, 'address': contract.address})
+
+    @app.route('/token', methods=['GET'])
+    @login_required
+    def token_details():
+        return jsonify({'abi': token.abi, 'address': token.address})
 
     # subscribe
     @app.route("/subscribe")

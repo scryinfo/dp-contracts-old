@@ -1,6 +1,5 @@
 import logging
 
-import web3
 import inspect
 
 from txn import check_txn
@@ -48,6 +47,7 @@ def send_token(web3, token, sender, receiver, amount):
 def account_balance(web3, account, token):
     if not web3.isAddress(account):
         return {}
+    account = web3.toChecksumAddress(account)
     return {
         'balance': token.call().balanceOf(account),
         'eth': web3.fromWei(web3.eth.getBalance(account), "ether")

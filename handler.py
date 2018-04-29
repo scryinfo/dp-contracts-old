@@ -9,7 +9,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 import werkzeug
 
 import simplejson as json
-from gevent import queue
+import gevent
 
 from playhouse.shortcuts import model_to_dict
 from peewee import IntegrityError
@@ -122,32 +122,32 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     # list of gevent Queues
     subscriptions = []
 
-    def notify(ev):
-        for sub in subscriptions[:]:
-            sub.put(ev)
+    def watch_events():
 
-    def on_transfer(args):
-        notify(args)
-        # LOG.info("EVENT transfer: {}".format(args))
+        def notify(ev):
+            for sub in subscriptions[:]:
+                sub.put(ev)
 
-    def on_channel(args):
-        notify(args)
-        # LOG.info("EVENT channel: {}".format(args))
+        transfersEvents = token.events.Transfer.createFilter(
+            fromBlock='latest')
+        newChannelEvents = contract.events.ChannelCreated.createFilter(
+            fromBlock='latest')
+        channelSetteledEvents = contract.events.ChannelSettled.createFilter(
+            fromBlock='latest')
 
-    def on_settle(args):
-        notify(args)
+        while True:
+            for event in transfersEvents.get_new_entries():
+                LOG.info("EVENT transfer: {}".format(event))
+                notify(event)
+            for event in newChannelEvents.get_new_entries():
+                LOG.info("EVENT channel: {}".format(event))
+                notify(event)
+            for event in channelSetteledEvents.get_new_entries():
+                LOG.info("EVENT settled: {}".format(event))
+                notify(event)
+            gevent.sleep(4)
 
-    transfersEvents = token.events.Transfer.createFilter(fromBlock='latest')
-    # token.on('Transfer', {}, on_transfer)
-    newChannelEvents = contract.events.ChannelCreated.createFilter(
-        fromBlock='latest')
-    # contract.on('ChannelCreated', {}, on_channel)
-    channelSetteledEvents = contract.events.ChannelSettled.createFilter(
-        fromBlock='latest')
-    # contract.on('ChannelSettled', {}, on_settle)
-
-    provider = web3.providers[0]
-    # accounts need to be unlocked
+    gevent.spawn(watch_events)
 
     # names => addresses
     accounts = {}
@@ -223,7 +223,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     @login_required
     def subscribe():
         def gen():
-            q = queue.Queue()
+            q = gevent.queue.Queue()
             # add the new queue to list that needs to be notified
             subscriptions.append(q)
             try:

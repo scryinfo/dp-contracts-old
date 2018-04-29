@@ -7,7 +7,7 @@ from flask_cors import CORS
 from flask_login import LoginManager, user_loaded_from_header
 import jwt
 
-from web3 import Web3, HTTPProvider
+from web3 import Web3, WebsocketProvider
 import ipfsapi
 import simplejson as json
 
@@ -30,7 +30,7 @@ try:
     ipfs = ipfsapi.connect('127.0.0.1', 5001)
 except Exception as ex:
     LOG.error("cannot connect to ipfs: {}".format(ex))
-    sys.exit(-1)
+    raise
 LOG.info("connected to IPFS: {}".format(ipfs.id()['ID']))
 
 app = Flask(__name__)
@@ -77,48 +77,37 @@ def load_user_from_header(header_val):
     return Trader.get(Trader.id == int(header_val['user_id']))
 
 
-_registrar = json.load(open("registrar.json"))
-
-
-@app.route("/registrar.json", methods=['GET'])
-def registrar():
-    return jsonify(_registrar)
-
-
-_contracts = json.load(open("build/contracts.json"))
-
-
-@app.route("/contracts.json", methods=['GET'])
-def contracts():
-    return jsonify(_contracts)
+_token = json.load(open("build/contracts/ScryToken.json"))
+_scry = json.load(open("build/contracts/Scry.json"))
 
 
 def load_contract(web3):
+    netversion = web3.version.network
     LOG.info("version: {} : {} : {}".format(web3.version.api,
                                             web3.version.node,
-                                            web3.version.network))
+                                            netversion))
+    try:
+        address = _token['networks'][netversion]['address']
+    except KeyError:
+        LOG.error("token not on network")
+        raise
+    token = web3.eth.contract(address=address, abi=_token['abi'])
 
-    for _, ctr in _registrar['deployments'].items():
-        # token[] = dep[]
-        name = list(ctr)[0]
-        addr = ctr[name]
-        abi = _contracts[name]['abi']
-        # print(name, addr, abi)
-        ct = web3.eth.contract(address=addr, abi=abi)
-        if name == "ScryToken":
-            token = ct
-        if name == "Scry":
-            contract = ct
+    try:
+        address = _scry['networks'][netversion]['address']
+    except KeyError:
+        LOG.error("contract not on network")
+        raise
+    contract = web3.eth.contract(address=address, abi=_scry['abi'])
+
     return token, contract
 
 
 with app.app_context():
-    provider = HTTPProvider('http://localhost:8545')
+    provider = WebsocketProvider('ws://localhost:8546')
     if not provider.isConnected():
-        LOG.error("Cannot connect to Ethereum")
-        sys.exit(-1)
+        raise Exception("Cannot connect to Ethereum")
     web3 = Web3(provider)
-
     token, contract = load_contract(web3)
     LOG.info('token:{}'.format(token.address))
     LOG.info('contract:{}'.format(contract.address))

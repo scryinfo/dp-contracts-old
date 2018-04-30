@@ -3,7 +3,7 @@ const Scry = artifacts.require('Scry');
 
 module.exports = function(deployer) {
   deployer
-    .deploy(Token, 1000)
+    .deploy(Token, 1000000000)
     .then(() => {
       console.log(`Token@: ${Token.address}`);
       return deployer.deploy(Scry, Token.address);

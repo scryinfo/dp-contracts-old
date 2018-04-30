@@ -156,7 +156,6 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     addresses = {v: k for k, v in accounts.items()}
 
     owner = to_checksum_address(accounts['owner'])
-    # TODO - assert owner is keybase
 
     # contract address needs to be visible to events
     addresses[contract.address] = 'contract'

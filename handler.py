@@ -122,11 +122,11 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     # list of gevent Queues
     subscriptions = []
 
-    def watch_events():
+    def notify(ev):
+        for sub in subscriptions[:]:
+            sub.put(ev)
 
-        def notify(ev):
-            for sub in subscriptions[:]:
-                sub.put(ev)
+    def watch_events():
 
         transfersEvents = token.events.Transfer.createFilter(
             fromBlock='latest')
@@ -161,7 +161,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     # contract address needs to be visible to events
     addresses[contract.address] = 'contract'
 
-    def newToken(trader):
+    def newJwt(trader):
         # create token
         payload = {
             'user_id': trader.id,
@@ -183,7 +183,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             raise ConstraintError('bad password')
         dictT = model_to_dict(trader)
         del dictT["password_hash"]
-        dictT["token"] = newToken(trader)
+        dictT["token"] = newJwt(trader)
         return jsonify(dictT)
 
     @app.route('/logout', methods=['POST'])
@@ -205,7 +205,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         LOG.info("new trader: {}".format(trader))
         dictT = model_to_dict(trader)
         del dictT["password_hash"]
-        dictT["token"] = newToken(trader)
+        dictT["token"] = newJwt(trader)
         return jsonify(dictT)
 
     @app.route('/contract', methods=['GET'])
@@ -258,7 +258,7 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
         return jsonify(ops.account_balance(web3, account, token))
 
     # fund participant
-    @app.route('/fund')
+    @app.route('/fund', methods=['POST'])
     @login_required
     def fund():
         trader = Trader.get(Trader.account == request.args.get('account'))

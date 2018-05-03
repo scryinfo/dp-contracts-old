@@ -217,6 +217,10 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
     def token_details():
         return jsonify({'abi': token.abi, 'address': token.address})
 
+    @app.route('/reserve')
+    def reserve():
+        return jsonify(ops.account_balance(web3, owner, token))
+
     # subscribe
     @app.route("/subscribe")
     @login_required

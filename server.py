@@ -7,7 +7,7 @@ from flask_cors import CORS
 from flask_login import LoginManager, user_loaded_from_header
 import jwt
 
-from web3 import Web3, WebsocketProvider
+from web3 import Web3, WebsocketProvider, HTTPProvider
 import ipfsapi
 import simplejson as json
 
@@ -65,7 +65,7 @@ def before_request():
     db.connect()
 
 
-@app.after_request
+@app.teardown_request
 def after_request(response):
     db.close()
     return response
@@ -107,6 +107,7 @@ def load_contract(web3):
 
 with app.app_context():
     provider = WebsocketProvider('ws://localhost:8546')
+    # provider = HTTPProvider('http://localhost:9545')
     if not provider.isConnected():
         raise Exception("Cannot connect to Ethereum")
     web3 = Web3(provider)

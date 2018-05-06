@@ -233,12 +233,12 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             try:
                 while True:
                     msg = q.get()
-                    # out = replace(['sender', 'receiver', 'verifier', 'from', 'to'],
-                    #               msg['args'], addresses)
+                    out = replace(['sender', 'receiver', 'verifier', 'from', 'to'],
+                                  dict(msg['args']), addresses)
 
                     yield "data:{}\n\n".format(json.dumps({
                         'event': msg['event'],
-                        'args': msg['args'],
+                        'args': out,
                         'block': msg['blockNumber']
                     }, default=json_serial))
             except GeneratorExit:

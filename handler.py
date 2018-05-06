@@ -233,9 +233,12 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             try:
                 while True:
                     msg = q.get()
+                    # replace know addresses with names
                     out = replace(['sender', 'receiver', 'verifier', 'from', 'to'],
                                   dict(msg['args']), addresses)
-
+                    # exclude some fields
+                    del out['data']
+                    # out = {x: out[x] for x in out if x not in ['data']}
                     yield "data:{}\n\n".format(json.dumps({
                         'event': msg['event'],
                         'args': out,

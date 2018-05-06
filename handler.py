@@ -137,16 +137,20 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             fromBlock='latest')
 
         while True:
-            for event in transfersEvents.get_new_entries():
-                LOG.info("EVENT transfer: {}".format(event))
-                notify(event)
-            for event in newChannelEvents.get_new_entries():
-                LOG.info("EVENT channel: {}".format(event))
-                notify(event)
-            for event in channelSetteledEvents.get_new_entries():
-                LOG.info("EVENT settled: {}".format(event))
-                notify(event)
-            gevent.sleep(4)
+            try:
+                for event in transfersEvents.get_new_entries():
+                    LOG.info("EVENT transfer: {}".format(event))
+                    notify(event)
+                for event in newChannelEvents.get_new_entries():
+                    LOG.info("EVENT channel: {}".format(event))
+                    notify(event)
+                for event in channelSetteledEvents.get_new_entries():
+                    LOG.info("EVENT settled: {}".format(event))
+                    notify(event)
+            except Exception:
+                LOG.exception("EVENT error")
+            finally:
+                gevent.sleep(4)
 
     gevent.spawn(watch_events)
 
@@ -237,7 +241,6 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
                     out = replace(['sender', 'receiver', 'verifier', 'from', 'to'],
                                   dict(msg['args']), addresses)
                     # exclude some fields
-                    # del out['data']
                     out = {x: out[x] for x in out if x not in ['data']}
                     yield "data:{}\n\n".format(json.dumps({
                         'event': msg['event'],

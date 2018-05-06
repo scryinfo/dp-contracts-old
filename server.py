@@ -42,6 +42,7 @@ app.config.update(SECRET_KEY=b'\xd2>i\xbfDv\n29\x15\xe7\x827OZ\x03')
 login_manager = LoginManager()
 login_manager.session_protection = "strong"
 login_manager.init_app(app)
+
 # dont use cookies
 
 
@@ -49,10 +50,18 @@ class CustomSessionInterface(SecureCookieSessionInterface):
     """Prevent creating session from API requests."""
 
     def save_session(self, *args, **kwargs):
-        return
+        if g.get('login_via_header'):
+            return
+        return super(CustomSessionInterface, self).save_session(*args, **kwargs)
 
 
 app.session_interface = CustomSessionInterface()
+
+
+@user_loaded_from_header.connect
+def user_loaded_from_header(self, user=None):
+    g.login_via_header = True
+
 
 # allow all domains on all routes
 CORS(app, supports_credentials=True)
@@ -71,10 +80,13 @@ def after_request(response):
     return response
 
 
-@login_manager.header_loader
-def load_user_from_header(header_val):
-    header_val = jwt.decode(header_val, 'secret', algorithms=['HS256'])
-    return Trader.get(Trader.id == int(header_val['user_id']))
+@login_manager.request_loader
+def load_user_from_request(request):
+    api_key = request.headers.get('JWT')
+    if api_key:
+        api_key = jwt.decode(api_key, 'secret', algorithms=['HS256'])
+        return Trader.get(Trader.id == int(api_key['user_id']))
+    return None
 
 
 _token = json.load(open("build/contracts/ScryToken.json"))

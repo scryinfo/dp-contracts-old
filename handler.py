@@ -10,6 +10,7 @@ import werkzeug
 
 import simplejson as json
 import gevent
+import gevent.queue
 
 from playhouse.shortcuts import model_to_dict
 from peewee import IntegrityError
@@ -172,8 +173,8 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
 
     @app.route('/login', methods=['POST'])
     def login():
-        if current_user.is_authenticated:
-            raise ConstraintError('already logged in')
+        # if current_user.is_authenticated:
+        #     raise ConstraintError('already logged in')
         data = request.get_json()
         trader = Trader.select().where(Trader.name == data['username']).first()
         if trader is None:
@@ -232,12 +233,12 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             try:
                 while True:
                     msg = q.get()
-                    out = replace(['sender', 'receiver', 'verifier', 'from', 'to'],
-                                  msg['args'], addresses)
+                    # out = replace(['sender', 'receiver', 'verifier', 'from', 'to'],
+                    #               msg['args'], addresses)
 
                     yield "data:{}\n\n".format(json.dumps({
                         'event': msg['event'],
-                        'args': out,
+                        'args': msg['args'],
                         'block': msg['blockNumber']
                     }, default=json_serial))
             except GeneratorExit:

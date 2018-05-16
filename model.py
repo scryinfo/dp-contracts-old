@@ -4,7 +4,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 
 #db = SqliteDatabase('scry.db')
-db = PostgresqlDatabase('scry', user='postgres', host='127.0.0.1', port=5432)
+db = PostgresqlDatabase('scry')
+
 
 class Trader(UserMixin, Model):
     name = CharField(unique=True)
@@ -20,7 +21,7 @@ class Trader(UserMixin, Model):
 
     class Meta:
         database = db
-        schema='scry'
+        schema = 'scry'
         indexes = (
             # create a unique constraint
             (('name', 'account'), True),
@@ -37,7 +38,7 @@ class Listing(Model):
 
     class Meta:
         database = db
-        schema='scry'
+        schema = 'scry'
         indexes = (
             # create a unique constraint
             (('cid', 'owner'), True),
@@ -58,7 +59,7 @@ class PurchaseOrder(Model):
 
     class Meta:
         database = db
-        schema='scry'
+        schema = 'scry'
 
 
 def create_tables():

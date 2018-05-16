@@ -33,6 +33,8 @@ lru-dict==1.1.6
 MarkupSafe==1.0
 mccabe==0.6.1
 peewee==3.3.1
+psycopg2==2.7.4
+psycopg2-binary==2.7.4
 pycodestyle==2.4.0
 pycparser==2.18
 pycryptodome==3.6.1

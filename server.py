@@ -11,6 +11,7 @@ from web3 import Web3, WebsocketProvider, HTTPProvider
 import ipfsapi
 import simplejson as json
 
+import ops
 from handler import run_app
 from model import db, Trader
 
@@ -91,6 +92,7 @@ def load_user_from_request(request):
 
 _token = json.load(open("build/contracts/ScryToken.json"))
 _scry = json.load(open("build/contracts/Scry.json"))
+_deployments = json.load(open("deployments.json"))
 
 
 def load_contract(web3):
@@ -99,20 +101,22 @@ def load_contract(web3):
                                             web3.version.node,
                                             netversion))
     try:
-        address = _token['networks'][netversion]['address']
+        address = _deployments[netversion]['ScryToken']
     except KeyError:
         LOG.error("token not on network")
         raise
-    token = web3.eth.contract(
-        address=Web3.toChecksumAddress(address), abi=_token['abi'])
+    address = Web3.toChecksumAddress(address)
+    token = web3.eth.contract(address=address, abi=_token['abi'])
+    LOG.info("owner balance:{}".format(token.call().balanceOf(address)))
 
     try:
-        address = _scry['networks'][netversion]['address']
+        address = _deployments[netversion]['Scry']
     except KeyError:
         LOG.error("contract not on network")
         raise
     contract = web3.eth.contract(
         address=Web3.toChecksumAddress(address), abi=_scry['abi'])
+    # LOG.info("contract owner:{}".format(token.call().balanceOf(address)))
 
     return token, contract
 

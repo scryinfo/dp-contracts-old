@@ -26,7 +26,7 @@ async function deploy(cname, args) {
             console.log('receipt:', receipt)
         })
         .on('confirmation', function (confirmationNumber, receipt) {
-            console.log('confirm"', confirmationNumber, 'receipt', receipt)
+            console.log('confirm:', confirmationNumber, 'receipt', receipt)
         });
     return deployment._address
 }

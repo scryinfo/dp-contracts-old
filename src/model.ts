@@ -1,13 +1,16 @@
 import {
   Entity,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
   Column,
   Repository,
   createConnection,
   getConnection,
-  Connection
+  Connection,
+  Index,
+  CreateDateColumn,
+  ManyToOne
 } from 'typeorm';
+
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
 const debug = require('debug')('server:model');
@@ -16,11 +19,37 @@ const debug = require('debug')('server:model');
 export class Trader {
   @PrimaryGeneratedColumn() id!: number;
 
-  @Column() name!: string;
-  @Column() account!: string;
-  @UpdateDateColumn({ type: 'timestamp' })
+  @Index({ unique: true })
+  @Column()
+  name!: string;
+
+  @Index({ unique: true })
+  @Column()
+  account!: string;
+
+  @CreateDateColumn({ type: 'timestamp' })
   created_at!: number;
-  @Column() password_hash!: string;
+
+  @Column({ length: 128 })
+  password_hash!: string;
+}
+
+@Entity({ schema: 'scry' })
+export class Listing {
+  @PrimaryGeneratedColumn() id!: number;
+
+  @Column() cid!: string;
+
+  @Column() size!: string;
+
+  @ManyToOne(type => Trader)
+  owner!: Trader;
+
+  @Column({ type: 'decimal' })
+  price!: number;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  created_at!: number;
 }
 
 const config: PostgresConnectionOptions = {
@@ -28,7 +57,7 @@ const config: PostgresConnectionOptions = {
   host: 'localhost',
   database: 'scry',
   // schema: 'scry',
-  entities: [Trader],
+  entities: [Trader, Listing],
   synchronize: true,
   logging: false
 };

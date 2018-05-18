@@ -5,7 +5,8 @@ import {
   Res,
   QueryParam,
   Authorized,
-  Post
+  Post,
+  Param
 } from 'routing-controllers';
 import { Response } from 'express';
 
@@ -77,5 +78,11 @@ export class ChainController {
       balance: await ops.tokenBalance(account),
       eth: await ops.ethBalance(account)
     };
+  }
+
+  @Authorized()
+  @Get('/nonce/:account')
+  async nonce(@Param('account') account: string) {
+    return { nonce: await ops.nonce(account) };
   }
 }

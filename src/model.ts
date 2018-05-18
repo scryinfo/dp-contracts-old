@@ -38,6 +38,8 @@ export class Trader {
 export class Listing {
   @PrimaryGeneratedColumn() id!: number;
 
+  @Column() name!: string;
+
   @Column() cid!: string;
 
   @Column() size!: string;
@@ -98,4 +100,8 @@ export async function dbConnection() {
 
 export function traders(): Repository<Trader> {
   return getConnection().getRepository(Trader);
+}
+
+export function listings(): Repository<Listing> {
+  return getConnection().getRepository(Listing);
 }

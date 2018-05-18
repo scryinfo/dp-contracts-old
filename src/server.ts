@@ -13,6 +13,7 @@ import { tokenUser } from './auth';
 import { ChainController } from './chainController';
 import { initChain } from './chainOps';
 import { TraderController } from './traderController';
+import { ListingController, initIpfs } from './listingController';
 
 const debug = require('debug')('server');
 const bodyParser = require('body-parser');
@@ -24,6 +25,7 @@ app.use(bodyParser.json());
 
 dbConnection();
 initChain();
+initIpfs();
 
 useExpressServer(app, {
   // routePrefix: '/api2',
@@ -43,7 +45,12 @@ useExpressServer(app, {
     }
     return tokenUser(token);
   },
-  controllers: [LoginController, ChainController, TraderController]
+  controllers: [
+    LoginController,
+    ChainController,
+    TraderController,
+    ListingController
+  ]
 });
 
 const port = process.env.PORT || 1234;

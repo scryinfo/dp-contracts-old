@@ -4,7 +4,7 @@ import { Trader } from './model';
 
 const JWT_SECRET = 'secret';
 const JWT_ALGORITHM = 'HS256';
-const JWT_EXP_DELTA_SECONDS = 60 * 60;
+const JWT_EXP_DELTA_SECONDS = 60 * 60 * 60;
 
 export function verifyToken(token: string): any {
   return jwt.verify(token, JWT_SECRET, {

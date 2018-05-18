@@ -52,12 +52,41 @@ export class Listing {
   created_at!: number;
 }
 
+@Entity({ schema: 'scry' })
+export class PurchaseOrder {
+  @PrimaryGeneratedColumn() id!: number;
+
+  @ManyToOne(type => Trader)
+  buyer!: Trader;
+
+  @ManyToOne(type => Listing)
+  listing!: Listing;
+
+  @ManyToOne(type => Trader)
+  verifier!: Trader;
+
+  @Column() create_block!: number;
+
+  @Column() needs_verification!: boolean;
+
+  @Column() needs_closure!: boolean;
+
+  @Column() buyer_auth!: string;
+
+  @Column() verifier_auth!: string;
+
+  @Column() rewards!: number;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  created_at!: number;
+}
+
 const config: PostgresConnectionOptions = {
   type: 'postgres',
   host: 'localhost',
   database: 'scry',
   // schema: 'scry',
-  entities: [Trader, Listing],
+  entities: [Trader, Listing, PurchaseOrder],
   synchronize: true,
   logging: false
 };

@@ -1,23 +1,15 @@
 import {
   JsonController,
-  Param,
   Body,
   Get,
   Post,
-  Put,
-  Delete,
-  Authorized,
-  Res,
   CurrentUser
 } from 'routing-controllers';
 
-import { Response } from 'express';
 import { MinLength } from 'class-validator';
 
 import { Trader } from './model';
 import { authenticate, signup } from './auth';
-
-const debug = require('debug')('server:controller');
 
 class LoginParams {
   @MinLength(2)
@@ -40,16 +32,8 @@ class SignupParams {
 
 @JsonController()
 export class LoginController {
-  @Get('/users')
-  getAll() {
-    return { users: { id: 1 } };
-  }
-
   @Get('/users/me')
-  getOne(
-    @CurrentUser({ required: true })
-    trader: Trader
-  ) {
+  getOne(@CurrentUser({ required: true }) trader: Trader) {
     delete trader.password_hash;
     return { trader };
   }
@@ -73,10 +57,7 @@ export class LoginController {
   }
 
   @Post('/logout')
-  logout(
-    @CurrentUser({ required: true })
-    trader: Trader
-  ) {
-    return { message: 'logged out' };
+  logout(@CurrentUser({ required: true }) trader: Trader) {
+    return { message: 'logged out ' + trader.name };
   }
 }

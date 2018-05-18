@@ -20,9 +20,11 @@
     "passport-local-authenticate": "^1.2.0",
     "pg": "^7.4.3",
     "routing-controllers": "^0.7.7",
-    "typeorm": "^0.2.6",
     "truffle": "^4.1.8",
+    "typeorm": "^0.2.6",
     "web3": "^1.0.0-beta.34"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "tslint": "^5.10.0"
+  }
 }

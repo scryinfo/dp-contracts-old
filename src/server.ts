@@ -1,14 +1,13 @@
 const express: any = require('express');
 
 import 'reflect-metadata';
-import { Request, Response, NextFunction, Router } from 'express';
 import {
   useExpressServer,
   Action,
   UnauthorizedError
 } from 'routing-controllers';
 
-import { LoginController } from './controller';
+import { LoginController } from './loginController';
 import { dbConnection } from './model';
 import { tokenUser } from './auth';
 
@@ -21,14 +20,6 @@ app.use(morgan('combined'));
 app.use(bodyParser.json());
 
 dbConnection();
-
-app.get('/api/:txid', (req: Request, res: Response) => {
-  res.json({ txid: req.params.txid });
-});
-
-app.post('/api/users', (req: Request, res: Response) => {
-  res.json({ users: req.body });
-});
 
 useExpressServer(app, {
   // routePrefix: '/api2',

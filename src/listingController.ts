@@ -25,29 +25,32 @@ export async function initIpfs() {
 
 @JsonController()
 export class ListingController {
-  repo: Repository<Listing>;
+  _listings: Repository<Listing>;
 
   constructor() {
-    this.repo = listings();
+    this._listings = listings();
   }
 
   @Authorized()
   @Get('/listing/:id')
   getOne(@Param('id') id: number) {
-    return this.repo.findOne({ id });
+    return this._listings.findOne({ id });
   }
 
   @Authorized()
   @Get('/listings')
-  async getAll() {
-    let all = await this.repo.find();
-    return all.map(it => {
+  async getAll(@QueryParam('owner') owner?: string) {
+    let all = await this._listings.find();
+    const map = all.map(async it => {
+      const sales = await it.sales;
+      debug(it.sales);
+      //   it.sold = sales.length;
       delete it.cid;
       return it;
     });
+    return Promise.all(map);
   }
 
-  @Authorized()
   @Post('/seller/upload')
   async upload(
     @CurrentUser({ required: true })
@@ -67,6 +70,6 @@ export class ListingController {
     listing.owner = trader;
     listing.name = file.originalname;
     listing.price = price;
-    return this.repo.save(listing);
+    return this._listings.save(listing);
   }
 }

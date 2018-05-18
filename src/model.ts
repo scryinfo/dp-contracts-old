@@ -8,7 +8,8 @@ import {
   Connection,
   Index,
   CreateDateColumn,
-  ManyToOne
+  ManyToOne,
+  OneToMany
 } from 'typeorm';
 
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
@@ -32,6 +33,15 @@ export class Trader {
 
   @Column({ length: 128 })
   password_hash!: string;
+
+  @OneToMany(type => Listing, listing => listing.owner)
+  listings!: Listing[];
+
+  @OneToMany(type => PurchaseOrder, po => po.buyer)
+  purchases!: PurchaseOrder[];
+
+  @OneToMany(type => PurchaseOrder, po => po.verifier)
+  verifications!: PurchaseOrder[];
 }
 
 @Entity({ schema: 'scry' })
@@ -44,7 +54,7 @@ export class Listing {
 
   @Column() size!: string;
 
-  @ManyToOne(type => Trader)
+  @ManyToOne(type => Trader, trader => trader.listings, { eager: true })
   owner!: Trader;
 
   @Column({ type: 'decimal' })
@@ -52,19 +62,22 @@ export class Listing {
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at!: number;
+
+  @OneToMany(type => PurchaseOrder, po => po.listing)
+  sales!: PurchaseOrder[];
 }
 
 @Entity({ schema: 'scry' })
 export class PurchaseOrder {
   @PrimaryGeneratedColumn() id!: number;
 
-  @ManyToOne(type => Trader)
+  @ManyToOne(type => Trader, trader => trader.purchases)
   buyer!: Trader;
 
-  @ManyToOne(type => Listing)
+  @ManyToOne(type => Listing, listing => listing.sales)
   listing!: Listing;
 
-  @ManyToOne(type => Trader)
+  @ManyToOne(type => Trader, trader => trader.verifications)
   verifier!: Trader;
 
   @Column() create_block!: number;

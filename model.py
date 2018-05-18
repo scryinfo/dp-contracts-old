@@ -21,7 +21,7 @@ class Trader(UserMixin, Model):
 
     class Meta:
         database = db
-        schema = 'scry'
+        schema = 'scry2'
         indexes = (
             # create a unique constraint
             (('name', 'account'), True),
@@ -38,7 +38,7 @@ class Listing(Model):
 
     class Meta:
         database = db
-        schema = 'scry'
+        schema = 'scry2'
         indexes = (
             # create a unique constraint
             (('cid', 'owner'), True),
@@ -59,7 +59,7 @@ class PurchaseOrder(Model):
 
     class Meta:
         database = db
-        schema = 'scry'
+        schema = 'scry2'
 
 
 def create_tables():

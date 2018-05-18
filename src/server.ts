@@ -10,6 +10,8 @@ import {
 import { LoginController } from './loginController';
 import { dbConnection } from './model';
 import { tokenUser } from './auth';
+import { ChainController } from './chainController';
+import { initChain } from './chainOps';
 
 const debug = require('debug')('server');
 const bodyParser = require('body-parser');
@@ -20,10 +22,20 @@ app.use(morgan('combined'));
 app.use(bodyParser.json());
 
 dbConnection();
+initChain();
 
 useExpressServer(app, {
   // routePrefix: '/api2',
   cors: true,
+  authorizationChecker: async (action: Action, roles: string[]) => {
+    const token = action.request.headers['jwt'];
+    if (!token) {
+      throw new UnauthorizedError('invalid token');
+    }
+    const user = await tokenUser(token);
+    debug('auth', user);
+    return true;
+  },
   currentUserChecker: async (action: Action) => {
     const token = action.request.headers['jwt'];
     if (!token) {
@@ -31,7 +43,7 @@ useExpressServer(app, {
     }
     return tokenUser(token);
   },
-  controllers: [LoginController]
+  controllers: [LoginController, ChainController]
 });
 
 const port = process.env.PORT || 1234;

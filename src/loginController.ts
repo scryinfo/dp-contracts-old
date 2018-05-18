@@ -33,7 +33,10 @@ class SignupParams {
 @JsonController()
 export class LoginController {
   @Get('/users/me')
-  getOne(@CurrentUser({ required: true }) trader: Trader) {
+  getOne(
+    @CurrentUser({ required: true })
+    trader: Trader
+  ) {
     delete trader.password_hash;
     return { trader };
   }
@@ -57,7 +60,10 @@ export class LoginController {
   }
 
   @Post('/logout')
-  logout(@CurrentUser({ required: true }) trader: Trader) {
+  logout(
+    @CurrentUser({ required: true })
+    trader: Trader
+  ) {
     return { message: 'logged out ' + trader.name };
   }
 }

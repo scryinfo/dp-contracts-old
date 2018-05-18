@@ -32,15 +32,6 @@ class SignupParams {
 
 @JsonController()
 export class LoginController {
-  @Get('/users/me')
-  getOne(
-    @CurrentUser({ required: true })
-    trader: Trader
-  ) {
-    delete trader.password_hash;
-    return { trader };
-  }
-
   @Post('/signup')
   async signup(@Body() user: SignupParams): Promise<any> {
     const { trader, jwt } = await signup(

@@ -6,6 +6,7 @@ const debug = require('debug')('server:contract');
 let token: any;
 let contract: any;
 let web3: Web3;
+let coinbase: string;
 
 const _token = require('../../build/contracts/ScryToken.json');
 const _contract = require('../../build/contracts/Scry.json');
@@ -17,7 +18,7 @@ export async function initChain() {
   const network = await web3.eth.net.getId();
   debug('network:', network);
 
-  const coinbase = await web3.eth.getCoinbase();
+  coinbase = await web3.eth.getCoinbase();
   debug('coinbase:', coinbase);
 
   let address = _deployments[network]['ScryToken'];
@@ -27,7 +28,12 @@ export async function initChain() {
   address = _deployments[network]['Scry'];
   contract = new web3.eth.Contract(_contract.abi, address);
   debug('contract:', contract._address);
-  //   debug('owner balance: ', await token.methods.balanceOf(coinbase).call());
+  debug('owner tokens: ', await tokenBalance(coinbase));
+  debug('owner eth: ', await ethBalance(coinbase));
+}
+
+export function owner() {
+  return coinbase;
 }
 
 export function contractDetails() {
@@ -56,12 +62,21 @@ export function sendToken(sender: string, receiver: string, amount: number) {
   });
 }
 
+export function sendEth(sender: string, receiver: string, ether: string) {
+  return web3.eth.sendTransaction({
+    from: sender,
+    to: receiver,
+    value: web3.utils.toWei(ether, 'ether')
+  });
+}
+
 export function tokenBalance(account: string) {
   return token.methods
     .balanceOf(account)
     .call()
     .then((str: string) => parseFloat(str));
 }
+
 export function ethBalance(account: string) {
   return web3.eth
     .getBalance(account)

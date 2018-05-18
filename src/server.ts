@@ -12,6 +12,7 @@ import { dbConnection } from './model';
 import { tokenUser } from './auth';
 import { ChainController } from './chainController';
 import { initChain } from './chainOps';
+import { TraderController } from './traderController';
 
 const debug = require('debug')('server');
 const bodyParser = require('body-parser');
@@ -33,7 +34,6 @@ useExpressServer(app, {
       throw new UnauthorizedError('invalid token');
     }
     const user = await tokenUser(token);
-    debug('auth', user);
     return true;
   },
   currentUserChecker: async (action: Action) => {
@@ -43,7 +43,7 @@ useExpressServer(app, {
     }
     return tokenUser(token);
   },
-  controllers: [LoginController, ChainController]
+  controllers: [LoginController, ChainController, TraderController]
 });
 
 const port = process.env.PORT || 1234;

@@ -59,7 +59,6 @@ export class ListingController {
     @QueryParam('seller') seller?: string,
     @QueryParam('verifier') verifier?: string
   ) {
-    debug('TODO'); // TODO
     if (seller) {
       const s = await getRepository(PurchaseOrder)
         .createQueryBuilder('po')
@@ -67,9 +66,9 @@ export class ListingController {
         .leftJoinAndSelect('listing.owner', 'owner')
         .where('owner.account = :account', { account: seller })
         .getMany();
-      debug(s);
       return s;
     }
+    debug('TODO'); // TODO
     return [];
   }
 

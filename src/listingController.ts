@@ -6,12 +6,11 @@ import {
   Post,
   QueryParam,
   CurrentUser,
-  UploadedFile,
-  UploadedFiles
+  UploadedFile
 } from 'routing-controllers';
 
 import { Listing, listings, Trader } from './model';
-import { Repository } from 'typeorm';
+import { Repository, getConnection, getRepository } from 'typeorm';
 
 const debug = require('debug')('server:listing');
 
@@ -25,30 +24,57 @@ export async function initIpfs() {
 
 @JsonController()
 export class ListingController {
-  _listings: Repository<Listing>;
-
-  constructor() {
-    this._listings = listings();
-  }
-
   @Authorized()
   @Get('/listing/:id')
   getOne(@Param('id') id: number) {
-    return this._listings.findOne({ id });
+    return getRepository(Listing).findOne({ id });
   }
 
   @Authorized()
   @Get('/listings')
   async getAll(@QueryParam('owner') owner?: string) {
-    let all = await this._listings.find();
-    const map = all.map(async it => {
-      const sales = await it.sales;
-      debug(it.sales);
-      //   it.sold = sales.length;
+    if (owner) {
+      const trader = await getConnection().manager.findOne(Trader, {
+        account: owner
+      });
+      debug('TODO'); // TODO
+      return [];
+    }
+    let all = await getRepository(Listing).find({ relations: ['owner'] });
+    return all.map(it => {
       delete it.cid;
       return it;
     });
-    return Promise.all(map);
+  }
+
+  @Authorized()
+  @Get('/history')
+  async history(
+    @QueryParam('buyer') buyer?: string,
+    @QueryParam('seller') seller?: string,
+    @QueryParam('verifier') verifier?: string
+  ) {
+    debug('TODO'); // TODO
+    if (seller) {
+      //   // items seller is selling
+      //   const trader = await this._traders.findOne(
+      //     {
+      //       account: seller
+      //     },
+      //     {
+      //       relations: ['listings']
+      //     }
+      //   );
+      //   if (trader) delete trader.password_hash;
+      //   return trader;
+      const s = await getRepository(Trader)
+        .createQueryBuilder('trader')
+        .leftJoinAndSelect('trader.listings', 'listing')
+        .where('trader.account = :account', { account: seller })
+        .getOne();
+      debug(s);
+    }
+    return [];
   }
 
   @Post('/seller/upload')
@@ -56,7 +82,6 @@ export class ListingController {
     @CurrentUser({ required: true })
     trader: Trader,
     @QueryParam('price') price: number,
-    @QueryParam('size') size: number,
     @UploadedFile('data') file: Express.Multer.File
   ) {
     debug(file);
@@ -70,6 +95,6 @@ export class ListingController {
     listing.owner = trader;
     listing.name = file.originalname;
     listing.price = price;
-    return this._listings.save(listing);
+    return getRepository(Listing).save(listing);
   }
 }

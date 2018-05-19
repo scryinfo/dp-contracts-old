@@ -2,13 +2,12 @@ import {
   JsonController,
   CurrentUser,
   Get,
-  Res,
   QueryParam,
   Authorized,
   Post,
-  Param
+  Param,
+  Body
 } from 'routing-controllers';
-import { Response } from 'express';
 
 import { Trader } from './model';
 import * as ops from './chainOps';
@@ -84,5 +83,17 @@ export class ChainController {
   @Get('/nonce/:account')
   async nonce(@Param('account') account: string) {
     return { nonce: await ops.nonce(account) };
+  }
+
+  @Authorized()
+  @Post('/rawTx')
+  async rawTx(@Body() raw: any) {
+    let receipt = await ops.rawTx(raw.data);
+    debug('rawTx receipt:', receipt);
+    // backward compat
+    if (receipt.status) {
+      receipt['create_block'] = receipt.blockNumber;
+    }
+    return receipt;
   }
 }

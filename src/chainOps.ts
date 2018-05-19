@@ -1,5 +1,4 @@
 import Web3 from 'web3';
-import { WSAENAMETOOLONG } from 'constants';
 
 const debug = require('debug')('server:contract');
 
@@ -81,4 +80,8 @@ export function ethBalance(account: string) {
   return web3.eth
     .getBalance(account)
     .then(wei => parseFloat(web3.utils.fromWei(wei, 'ether')));
+}
+
+export function rawTx(tx: string) {
+  return web3.eth.sendSignedTransaction(tx);
 }

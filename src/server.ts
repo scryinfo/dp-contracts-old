@@ -14,6 +14,8 @@ import { ChainController } from './chainController';
 import { initChain } from './chainOps';
 import { TraderController } from './traderController';
 import { ListingController, initIpfs } from './listingController';
+import { PurchaseController } from './poController';
+import { verifyToken } from './jwt';
 
 const debug = require('debug')('server');
 const bodyParser = require('body-parser');
@@ -30,12 +32,19 @@ initIpfs();
 useExpressServer(app, {
   // routePrefix: '/api2',
   cors: true,
-  authorizationChecker: async (action: Action, roles: string[]) => {
+  authorizationChecker: (action: Action, roles: string[]) => {
     const token = action.request.headers['jwt'];
     if (!token) {
-      throw new UnauthorizedError('invalid token');
+      debug('missing token');
+      return false;
     }
-    const user = await tokenUser(token);
+    try {
+      verifyToken(token);
+    } catch (ex) {
+      debug(ex.message);
+      return false;
+    }
+    // const _ = await tokenUser(token);
     return true;
   },
   currentUserChecker: async (action: Action) => {
@@ -49,7 +58,8 @@ useExpressServer(app, {
     LoginController,
     ChainController,
     TraderController,
-    ListingController
+    ListingController,
+    PurchaseController
   ]
 });
 

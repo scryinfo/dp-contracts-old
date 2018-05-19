@@ -5,7 +5,6 @@ import {
   Repository,
   createConnection,
   getConnection,
-  Connection,
   Index,
   CreateDateColumn,
   ManyToOne,
@@ -54,7 +53,7 @@ export class Listing {
 
   @Column() size!: string;
 
-  @ManyToOne(type => Trader, trader => trader.listings, { eager: true })
+  @ManyToOne(type => Trader, trader => trader.listings)
   owner!: Trader;
 
   @Column({ type: 'decimal' })
@@ -88,7 +87,8 @@ export class PurchaseOrder {
 
   @Column() buyer_auth!: string;
 
-  @Column() verifier_auth!: string;
+  @Column({ nullable: true })
+  verifier_auth?: string;
 
   @Column() rewards!: number;
 
@@ -103,7 +103,7 @@ const config: PostgresConnectionOptions = {
   // schema: 'scry',
   entities: [Trader, Listing, PurchaseOrder],
   synchronize: true,
-  logging: false
+  logging: true
 };
 
 export async function dbConnection() {
@@ -117,4 +117,8 @@ export function traders(): Repository<Trader> {
 
 export function listings(): Repository<Listing> {
   return getConnection().getRepository(Listing);
+}
+
+export function purchases(): Repository<PurchaseOrder> {
+  return getConnection().getRepository(PurchaseOrder);
 }

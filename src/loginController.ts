@@ -1,10 +1,4 @@
-import {
-  JsonController,
-  Body,
-  Get,
-  Post,
-  CurrentUser
-} from 'routing-controllers';
+import { JsonController, Body, Post, CurrentUser } from 'routing-controllers';
 
 import { MinLength } from 'class-validator';
 

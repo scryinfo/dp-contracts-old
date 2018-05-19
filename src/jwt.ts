@@ -20,6 +20,6 @@ export function newToken(trader: Trader): string {
       account: trader.account
     },
     JWT_SECRET,
-    { expiresIn: 60 * 60 }
+    { expiresIn: JWT_EXP_DELTA_SECONDS }
   );
 }

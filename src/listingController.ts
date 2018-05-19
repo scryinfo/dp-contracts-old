@@ -9,8 +9,8 @@ import {
   UploadedFile
 } from 'routing-controllers';
 
-import { Listing, listings, Trader } from './model';
-import { Repository, getConnection, getRepository } from 'typeorm';
+import { Listing, Trader, PurchaseOrder } from './model';
+import { getRepository } from 'typeorm';
 
 const debug = require('debug')('server:listing');
 
@@ -34,11 +34,15 @@ export class ListingController {
   @Get('/listings')
   async getAll(@QueryParam('owner') owner?: string) {
     if (owner) {
-      const trader = await getConnection().manager.findOne(Trader, {
-        account: owner
+      const all = await getRepository(Listing)
+        .createQueryBuilder('listing')
+        .leftJoinAndSelect('listing.owner', 'owner')
+        .where('owner.account = :account', { account: owner })
+        .getMany();
+      return all.map(it => {
+        delete it.cid;
+        return it;
       });
-      debug('TODO'); // TODO
-      return [];
     }
     let all = await getRepository(Listing).find({ relations: ['owner'] });
     return all.map(it => {
@@ -47,32 +51,24 @@ export class ListingController {
     });
   }
 
-  @Authorized()
   @Get('/history')
   async history(
+    @CurrentUser({ required: true })
+    trader: Trader,
     @QueryParam('buyer') buyer?: string,
     @QueryParam('seller') seller?: string,
     @QueryParam('verifier') verifier?: string
   ) {
     debug('TODO'); // TODO
     if (seller) {
-      //   // items seller is selling
-      //   const trader = await this._traders.findOne(
-      //     {
-      //       account: seller
-      //     },
-      //     {
-      //       relations: ['listings']
-      //     }
-      //   );
-      //   if (trader) delete trader.password_hash;
-      //   return trader;
-      const s = await getRepository(Trader)
-        .createQueryBuilder('trader')
-        .leftJoinAndSelect('trader.listings', 'listing')
-        .where('trader.account = :account', { account: seller })
-        .getOne();
+      const s = await getRepository(PurchaseOrder)
+        .createQueryBuilder('po')
+        .leftJoinAndSelect('po.listing', 'listing')
+        .leftJoinAndSelect('listing.owner', 'owner')
+        .where('owner.account = :account', { account: seller })
+        .getMany();
       debug(s);
+      return s;
     }
     return [];
   }

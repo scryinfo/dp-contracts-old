@@ -9,7 +9,7 @@ import {
   UploadedFile
 } from 'routing-controllers';
 
-import { Listing, Trader, PurchaseOrder } from './model';
+import { Listing, Trader } from './model';
 import { getRepository } from 'typeorm';
 
 const debug = require('debug')('server:listing');
@@ -49,27 +49,6 @@ export class ListingController {
       delete it.cid;
       return it;
     });
-  }
-
-  @Get('/history')
-  async history(
-    @CurrentUser({ required: true })
-    trader: Trader,
-    @QueryParam('buyer') buyer?: string,
-    @QueryParam('seller') seller?: string,
-    @QueryParam('verifier') verifier?: string
-  ) {
-    if (seller) {
-      const s = await getRepository(PurchaseOrder)
-        .createQueryBuilder('po')
-        .leftJoinAndSelect('po.listing', 'listing')
-        .leftJoinAndSelect('listing.owner', 'owner')
-        .where('owner.account = :account', { account: seller })
-        .getMany();
-      return s;
-    }
-    debug('TODO'); // TODO
-    return [];
   }
 
   @Post('/seller/upload')

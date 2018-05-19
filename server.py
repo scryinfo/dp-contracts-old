@@ -86,7 +86,10 @@ def load_user_from_request(request):
     api_key = request.headers.get('JWT')
     if api_key:
         api_key = jwt.decode(api_key, 'secret', algorithms=['HS256'])
-        return Trader.get(Trader.id == int(api_key['user_id']))
+        LOG.info(api_key)
+        trader = Trader.get(Trader.id == int(api_key['user_id']))
+        LOG.info(trader)
+        return trader
     return None
 
 

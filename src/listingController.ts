@@ -40,13 +40,11 @@ export class ListingController {
         .where('owner.account = :account', { account: owner })
         .getMany();
       return all.map(it => {
-        delete it.cid;
         return it;
       });
     }
     let all = await getRepository(Listing).find({ relations: ['owner'] });
     return all.map(it => {
-      delete it.cid;
       return it;
     });
   }

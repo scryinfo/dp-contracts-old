@@ -48,9 +48,12 @@ export class PurchaseController {
       account: purchase.buyer
     });
     if (!buyer) throw new NotFoundError('Buyer was not found.');
-    const listing = await getRepository(Listing).findOne({
-      id: purchase.listing
-    });
+    const listing = await getRepository(Listing).findOne(
+      {
+        id: purchase.listing
+      },
+      { relations: ['owner'] }
+    );
     if (!listing) throw new NotFoundError('Listing was not found.');
     const verifier = purchase.verifier
       ? await getRepository(Trader).findOne({ account: purchase.verifier })
@@ -87,14 +90,16 @@ export class PurchaseController {
     order.verifier_auth = verify.verifierAuth;
     order.needs_verification = false;
     const verified = await getRepository(PurchaseOrder).save(order);
-    delete verified.listing.cid;
     // TODO - event
     return verified;
   }
 
   @Authorized()
   @Post('/seller/close')
-  async close(@Body() close: CloseParams) {
+  async close(
+    @Body({ required: true })
+    close: CloseParams
+  ) {
     const order = await getRepository(PurchaseOrder).findOne({ id: close.id });
     if (!order) throw new NotFoundError('Order was not found.');
     if (order.needs_verification)
@@ -105,7 +110,11 @@ export class PurchaseController {
     debug('close receipt:', receipt);
     order.needs_closure = false;
     const closed = await getRepository(PurchaseOrder).save(order);
-    return { create_block: receipt.blockNumber, purchase: order };
+    return {
+      create_block: receipt.blockNumber,
+      purchase: order,
+      receipt: receipt
+    };
   }
 
   @Get('/history')
@@ -156,8 +165,9 @@ function loadOrder(id: number) {
   return getRepository(PurchaseOrder)
     .createQueryBuilder('po')
     .leftJoinAndSelect('po.listing', 'listing')
-    .leftJoinAndSelect('po.buyer', 'buyer')
     .leftJoinAndSelect('listing.owner', 'owner')
+    .leftJoinAndSelect('po.buyer', 'buyer')
+    .leftJoinAndSelect('po.verifier', 'verifier')
     .where('po.id = :id', { id: id })
     .getOne();
 }

@@ -17,8 +17,6 @@ const sellerKey =
 const verifierKey =
     '0x4948deb9bd1ce66e05dcfe500583220b252ac221bae030cde498ba6732e5d58d';
 
-const cid = 'QmZ3gZXbckAxfJafysmmoNPwx67WiaLdqoYCxrnVWNeJ7R';
-
 let web3;
 let token;
 let contract;
@@ -76,24 +74,25 @@ async function main() {
     debug('ba:', ba.signature);
 
     // create po
-    const purchase = await savePurchase(7, buyer.address, seller.address, reward, createBlock, ba.signature);
+    const purchase = await savePurchase(7, buyer.address, verifier.address, reward, createBlock, ba.signature);
     debug('purchase', purchase.data)
 
-    const va = await verifierAuthorization(seller, verifier, cid);
+    const va = await verifierAuthorization(seller, verifier, purchase.data.listing.cid);
     debug('va:', va.signature);
     // save verification
     const saveVa = await saveVerification(verifier.address, purchase.data.id, va.signature)
     debug('purchase', saveVa.data)
 
-    const closed = await closeChannel(purchase.data.id,
-        buyer.address,
+    const p = saveVa.data;
+    const closed = await closeChannel(p.id,
+        p.buyer.account,
         seller,
-        verifier.address,
-        createBlock,
-        cid,
+        p.verifier.account,
+        p.create_block,
+        p.listing.cid,
         amt,
-        ba.signature,
-        va.signature
+        p.buyer_auth,
+        p.verifier_auth
     );
     debug('closed @:', closed);
 }

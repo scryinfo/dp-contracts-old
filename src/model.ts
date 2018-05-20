@@ -56,7 +56,7 @@ export class Listing {
   @ManyToOne(type => Trader, trader => trader.listings)
   owner!: Trader;
 
-  @Column({ type: 'decimal' })
+  @Column({ type: 'decimal', precision: 5, scale: 2 })
   price!: number;
 
   @CreateDateColumn({ type: 'timestamp' })

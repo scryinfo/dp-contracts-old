@@ -29,6 +29,7 @@ export async function initChain() {
   debug('contract:', contract._address);
   debug('owner tokens: ', await tokenBalance(coinbase));
   debug('owner eth: ', await ethBalance(coinbase));
+  return { web3, token, contract };
 }
 
 export function owner() {

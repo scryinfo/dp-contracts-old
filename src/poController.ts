@@ -13,25 +13,26 @@ import {
 import { PurchaseOrder, Trader, Listing } from './model';
 import { getRepository } from 'typeorm';
 import { rawTx } from './chainOps';
+import { MinLength, IsNumber } from 'class-validator';
 
 const debug = require('debug')('server:purchase');
 
 class PurchaseParams {
   buyer!: string;
-  listing!: number;
+  @IsNumber() listing!: number;
   verifier?: string;
-  rewards!: string;
+  @IsNumber() rewards!: number;
   createBlock!: number;
   buyerAuth!: string;
 }
 
 class CloseParams {
-  id!: number;
+  @IsNumber() id!: number;
   data!: string;
 }
 
 class VerifyParams {
-  item!: number;
+  @IsNumber() item!: number;
   verifierAuth!: string;
 }
 
@@ -39,7 +40,10 @@ class VerifyParams {
 export class PurchaseController {
   @Authorized()
   @Post('/buyer/purchase')
-  async purchase(@Body() purchase: PurchaseParams) {
+  async purchase(
+    @Body({ required: true })
+    purchase: PurchaseParams
+  ) {
     const buyer = await getRepository(Trader).findOne({
       account: purchase.buyer
     });
@@ -52,9 +56,8 @@ export class PurchaseController {
       ? await getRepository(Trader).findOne({ account: purchase.verifier })
       : null;
     // TODO check_purchase(buyer, verifier_id, listing)
-    const rewardPct = verifier ? parseInt(purchase.rewards) : 0;
-    // covert % to token value, round towards 0
-    const rewards = Math.floor(listing.price / 100 * rewardPct);
+    // reward token value, rounded towards 0 // currently integer
+    const rewards = verifier ? purchase.rewards : 0;
     const po = new PurchaseOrder();
     po.buyer = buyer!;
     po.listing = listing!;
@@ -70,7 +73,10 @@ export class PurchaseController {
 
   @Authorized()
   @Post('/verifier/sign')
-  async verify(@Body() verify: VerifyParams) {
+  async verify(
+    @Body({ required: true })
+    verify: VerifyParams
+  ) {
     const order = await loadOrder(verify.item);
     if (!order) throw new NotFoundError('Order was not found.');
     if (!order.needs_verification)
@@ -97,12 +103,9 @@ export class PurchaseController {
       throw new BadRequestError('Order has already been closed.');
     const receipt = await rawTx(close.data);
     debug('close receipt:', receipt);
-    if (!receipt.status) {
-      throw new BadRequestError('Close Transaction Failed.');
-    }
     order.needs_closure = false;
     const closed = await getRepository(PurchaseOrder).save(order);
-    return { create_block: receipt.blockNumber, purchase: closed };
+    return { create_block: receipt.blockNumber, purchase: order };
   }
 
   @Get('/history')
@@ -120,7 +123,8 @@ export class PurchaseController {
         .leftJoinAndSelect('listing.owner', 'owner')
         .where('owner.account = :account', { account: seller })
         .getMany();
-    } else if (verifier) {
+    }
+    if (verifier) {
       return getRepository(PurchaseOrder)
         .createQueryBuilder('po')
         .leftJoinAndSelect('po.listing', 'listing')
@@ -129,8 +133,16 @@ export class PurchaseController {
         .where('verifier.account = :account', { account: verifier })
         .getMany();
     }
-    debug('TODO'); // TODO
-    return [];
+    if (buyer) {
+      return getRepository(PurchaseOrder)
+        .createQueryBuilder('po')
+        .leftJoinAndSelect('po.listing', 'listing')
+        .leftJoinAndSelect('listing.owner', 'owner')
+        .leftJoinAndSelect('po.buyer', 'buyer')
+        .where('buyer.account = :account', { account: buyer })
+        .getMany();
+    }
+    throw new BadRequestError('incorrect parameter');
   }
 
   @Authorized()

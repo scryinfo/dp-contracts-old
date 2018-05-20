@@ -347,8 +347,6 @@ def run_app(app, web3, token, contract, ipfs, login_manager):
             verifier = Trader.get(Trader.account == verifier_id)
         num_verifiers = 1 if verifier else 0
         rewards = int(abs(int(data.get('rewards', 1)))) if verifier else 0
-        # convert % to actual reward, truncates towards 0
-        rewards = int((listing.price / 100) * rewards)
         check_purchase(buyer, verifier_id, listing)
         ch = data.get('createBlock')
         auth_buyer = data.get('buyerAuth')

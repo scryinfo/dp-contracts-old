@@ -41,7 +41,7 @@ async function main() {
     const verifier = web3.eth.accounts.privateKeyToAccount(verifierKey);
     debug('verifier:', verifier.address);
 
-    // debug("token gift:", await ops.sendToken(coinbase, buyer.address, 100));
+    debug("token gift:", await ops.sendToken(coinbase, buyer.address, 100));
     // debug("eth gift", await ops.sendEth(coinbase, buyer.address, "0.1"));
 
     // register
@@ -74,7 +74,7 @@ async function main() {
     debug('ba:', ba.signature);
 
     // create po
-    const purchase = await savePurchase(7, buyer.address, verifier.address, reward, createBlock, ba.signature);
+    const purchase = await savePurchase(1, buyer.address, verifier.address, reward, createBlock, ba.signature);
     debug('purchase', purchase.data)
 
     const va = await verifierAuthorization(seller, verifier, purchase.data.listing.cid);

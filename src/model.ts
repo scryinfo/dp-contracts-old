@@ -15,20 +15,20 @@ import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConne
 
 const debug = require('debug')('server:model');
 
-@Entity({ schema: 'scry' })
+@Entity()
 export class Trader {
   @PrimaryGeneratedColumn() id!: number;
 
   @Index({ unique: true })
-  @Column()
+  @Column({ length: 128 })
   name!: string;
 
   @Index({ unique: true })
-  @Column()
+  @Column({ length: 128 })
   account!: string;
 
   @CreateDateColumn({ type: 'timestamp' })
-  created_at!: number;
+  created_at!: Date;
 
   @Column({ length: 128 })
   password_hash!: string;
@@ -43,30 +43,33 @@ export class Trader {
   verifications!: PurchaseOrder[];
 }
 
-@Entity({ schema: 'scry' })
+@Entity()
 export class Listing {
   @PrimaryGeneratedColumn() id!: number;
 
-  @Column() name!: string;
+  @Column({ length: 128 })
+  name!: string;
 
-  @Column() cid!: string;
+  @Column({ length: 128 })
+  cid!: string;
 
-  @Column() size!: string;
+  @Column({ length: 10 })
+  size!: string;
 
   @ManyToOne(type => Trader, trader => trader.listings)
   owner!: Trader;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2 })
+  @Column({ type: 'int' })
   price!: number;
 
   @CreateDateColumn({ type: 'timestamp' })
-  created_at!: number;
+  created_at!: Date;
 
   @OneToMany(type => PurchaseOrder, po => po.listing)
   sales!: PurchaseOrder[];
 }
 
-@Entity({ schema: 'scry' })
+@Entity()
 export class PurchaseOrder {
   @PrimaryGeneratedColumn() id!: number;
 
@@ -79,28 +82,31 @@ export class PurchaseOrder {
   @ManyToOne(type => Trader, trader => trader.verifications)
   verifier!: Trader;
 
-  @Column() create_block!: number;
+  @Column({ type: 'int' })
+  create_block!: number;
 
   @Column() needs_verification!: boolean;
 
   @Column() needs_closure!: boolean;
 
-  @Column() buyer_auth!: string;
+  @Column({ length: 256 })
+  buyer_auth!: string;
 
-  @Column({ nullable: true })
+  @Column({ length: 256, nullable: true })
   verifier_auth?: string;
 
-  @Column() rewards!: number;
+  @Column({ type: 'int' })
+  rewards!: number;
 
   @CreateDateColumn({ type: 'timestamp' })
-  created_at!: number;
+  created_at!: Date;
 }
 
 const config: PostgresConnectionOptions = {
   type: 'postgres',
   host: 'localhost',
   database: 'scry',
-  // schema: 'scry',
+  schema: 'scry2',
   entities: [Trader, Listing, PurchaseOrder],
   synchronize: true,
   logging: true

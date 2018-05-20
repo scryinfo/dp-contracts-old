@@ -50,7 +50,7 @@ useExpressServer(app, {
   currentUserChecker: async (action: Action) => {
     const token = action.request.headers['jwt'];
     if (!token) {
-      throw new UnauthorizedError('invalid token');
+      throw new UnauthorizedError('missing token');
     }
     return tokenUser(token);
   },

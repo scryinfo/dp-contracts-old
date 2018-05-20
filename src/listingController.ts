@@ -6,11 +6,14 @@ import {
   Post,
   QueryParam,
   CurrentUser,
-  UploadedFile
+  UploadedFile,
+  NotFoundError,
+  Res
 } from 'routing-controllers';
 
 import { Listing, Trader } from './model';
 import { getRepository } from 'typeorm';
+import { Response } from 'express';
 
 const debug = require('debug')('server:listing');
 
@@ -56,8 +59,6 @@ export class ListingController {
     @QueryParam('price') price: number,
     @UploadedFile('data') file: Express.Multer.File
   ) {
-    debug(file);
-    debug(trader.account);
     // upload to ipfs
     const [added] = await ipfs.files.add(file.buffer);
     debug(added);
@@ -68,5 +69,27 @@ export class ListingController {
     listing.name = file.originalname;
     listing.price = price;
     return getRepository(Listing).save(listing);
+  }
+
+  @Get('/seller/download')
+  async download(
+    @QueryParam('CID', { required: true })
+    cid: string,
+    @Res() response: Response
+  ) {
+    // check if either user is owner,
+    // has paid for it,
+    // or has been assigned as verifier - TODO
+    let raw = '';
+    try {
+      [raw] = await ipfs.files.get(cid);
+      debug(raw);
+      response.setHeader('Content-Type', 'application/octet-stream');
+      response.setHeader('Content-Disposition', 'inline; filename=' + raw.path);
+      response.send(raw.content);
+    } catch (ex) {
+      debug(ex.message);
+      throw new NotFoundError(`File was not found.`);
+    }
   }
 }

@@ -104,7 +104,6 @@ export class PurchaseOrder {
 
 const config: PostgresConnectionOptions = {
   type: 'postgres',
-  host: 'localhost',
   database: 'scry',
   schema: 'scry2',
   entities: [Trader, Listing, PurchaseOrder],

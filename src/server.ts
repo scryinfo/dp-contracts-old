@@ -25,9 +25,17 @@ const app = express();
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 
-dbConnection();
-initChain();
-initIpfs();
+async function init() {
+  await dbConnection();
+  await initChain();
+  await initIpfs();
+  debug('initialized');
+}
+
+init().catch(error => {
+  console.dir('initialization', error);
+  process.exit(-1);
+});
 
 useExpressServer(app, {
   // routePrefix: '/api2',

@@ -5,7 +5,9 @@
   "repository": "https://github.com/scryInfo/scry.git",
   "author": "Abhishek Kumar <bettiah@gmail.com>",
   "scripts": {
-    "start": "tsc -w & DEBUG=server* nodemon build/js/server.js"
+    "dev": "tsc -w & DEBUG=server* nodemon build/js/server.js",
+    "build": "tsc",
+    "start": "DEBUG=server* node build/js/server.js"
   },
   "dependencies": {
     "@types/body-parser": "^1.17.0",

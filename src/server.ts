@@ -32,12 +32,13 @@ async function init() {
   debug('initialized');
 }
 
+process.on('unhandledRejection', (reason, p) => {
+  debug('Unhandled Rejection at: Promise', p, 'reason:', reason);
+});
+
 init().catch(error => {
   debug('initialization', error);
   process.exit(-1);
-});
-process.on('unhandledRejection', (reason, p) => {
-  debug('Unhandled Rejection at: Promise', p, 'reason:', reason);
 });
 
 useExpressServer(app, {

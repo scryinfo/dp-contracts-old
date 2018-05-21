@@ -106,6 +106,7 @@ const config: PostgresConnectionOptions = {
   type: 'postgres',
   database: 'scry',
   schema: 'scry2',
+  host: process.platform === 'linux' ? '/var/run/postgresql' : '/tmp',
   entities: [Trader, Listing, PurchaseOrder],
   synchronize: true,
   logging: true

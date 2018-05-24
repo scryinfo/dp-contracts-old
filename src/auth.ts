@@ -1,6 +1,7 @@
 import { UnauthorizedError } from 'routing-controllers';
-import { Trader, traders } from './model';
+import { Trader } from './model';
 import { newToken, verifyToken } from './jwt';
+import { getRepository } from 'typeorm';
 
 const auth = require('passport-local-authenticate');
 
@@ -18,7 +19,7 @@ export async function authenticate(
   username: string,
   password: string
 ): Promise<any> {
-  const trader = await traders().findOne({ name: username });
+  const trader = await getRepository(Trader).findOne({ name: username });
   if (!trader) {
     throw new UnauthorizedError('user does not exist');
   }
@@ -60,7 +61,7 @@ async function newTrader(
   trader.name = username;
   trader.account = account;
   trader.password_hash = pw;
-  return traders().save(trader);
+  return getRepository(Trader).save(trader);
 }
 
 export async function signup(
@@ -68,7 +69,7 @@ export async function signup(
   password: string,
   account: string
 ): Promise<any> {
-  const exists = await traders().count({ name: username });
+  const exists = await getRepository(Trader).count({ name: username });
   if (exists !== 0) {
     throw 'User exists';
   }
@@ -80,7 +81,7 @@ export async function signup(
 export function tokenUser(token: string): Promise<Trader | undefined> {
   try {
     const { user_id } = verifyToken(token);
-    return traders().findOne(user_id);
+    return getRepository(Trader).findOne(user_id);
   } catch (ex) {
     debug(ex.message);
     throw new UnauthorizedError(ex.message);

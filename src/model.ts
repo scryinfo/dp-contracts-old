@@ -2,9 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  Repository,
   createConnection,
-  getConnection,
   Index,
   CreateDateColumn,
   ManyToOne,
@@ -33,13 +31,13 @@ export class Trader {
   @Column({ length: 128 })
   password_hash!: string;
 
-  @OneToMany(type => Listing, listing => listing.owner)
+  @OneToMany(() => Listing, listing => listing.owner)
   listings!: Listing[];
 
-  @OneToMany(type => PurchaseOrder, po => po.buyer)
+  @OneToMany(() => PurchaseOrder, po => po.buyer)
   purchases!: PurchaseOrder[];
 
-  @OneToMany(type => PurchaseOrder, po => po.verifier)
+  @OneToMany(() => PurchaseOrder, po => po.verifier)
   verifications!: PurchaseOrder[];
 }
 
@@ -56,7 +54,7 @@ export class Listing {
   @Column({ length: 10 })
   size!: string;
 
-  @ManyToOne(type => Trader, trader => trader.listings)
+  @ManyToOne(() => Trader, trader => trader.listings)
   owner!: Trader;
 
   @Column({ type: 'int' })
@@ -65,7 +63,7 @@ export class Listing {
   @CreateDateColumn({ type: 'timestamp' })
   created_at!: Date;
 
-  @OneToMany(type => PurchaseOrder, po => po.listing)
+  @OneToMany(() => PurchaseOrder, po => po.listing)
   sales!: PurchaseOrder[];
 }
 
@@ -73,13 +71,13 @@ export class Listing {
 export class PurchaseOrder {
   @PrimaryGeneratedColumn() id!: number;
 
-  @ManyToOne(type => Trader, trader => trader.purchases)
+  @ManyToOne(() => Trader, trader => trader.purchases)
   buyer!: Trader;
 
-  @ManyToOne(type => Listing, listing => listing.sales)
+  @ManyToOne(() => Listing, listing => listing.sales)
   listing!: Listing;
 
-  @ManyToOne(type => Trader, trader => trader.verifications)
+  @ManyToOne(() => Trader, trader => trader.verifications)
   verifier!: Trader;
 
   @Column({ type: 'int' })
@@ -115,16 +113,4 @@ const config: PostgresConnectionOptions = {
 export async function dbConnection() {
   await createConnection(config);
   debug('db connected');
-}
-
-export function traders(): Repository<Trader> {
-  return getConnection().getRepository(Trader);
-}
-
-export function listings(): Repository<Listing> {
-  return getConnection().getRepository(Listing);
-}
-
-export function purchases(): Repository<PurchaseOrder> {
-  return getConnection().getRepository(PurchaseOrder);
 }

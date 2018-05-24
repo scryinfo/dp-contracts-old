@@ -26,9 +26,18 @@ app.use(morgan('dev'));
 app.use(bodyParser.json());
 
 async function init() {
-  await dbConnection();
-  await initChain();
-  await initIpfs();
+  await dbConnection().catch(ex => {
+    debug('db', ex);
+    throw new Error(ex.message);
+  });
+  await initChain().catch(ex => {
+    debug('chain', ex);
+    throw new Error(ex.message);
+  });
+  await initIpfs().catch(ex => {
+    debug('ipfs', ex);
+    throw new Error(ex.message);
+  });
   debug('initialized');
 }
 

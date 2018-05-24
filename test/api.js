@@ -13,7 +13,6 @@ const buyerKey =
     '0xa518652e06e57e6d9e9ff93ad5eef2892415a9735ff14c246eff301342c8e0f7';
 const sellerKey =
     '0x80ea726eaa53b661b558c9be7d752c8521719b9f018fd7c3d102020580a61d0f';
-
 const verifierKey =
     '0x4948deb9bd1ce66e05dcfe500583220b252ac221bae030cde498ba6732e5d58d';
 
@@ -41,7 +40,7 @@ async function main() {
     const verifier = web3.eth.accounts.privateKeyToAccount(verifierKey);
     debug('verifier:', verifier.address);
 
-    debug("token gift:", await ops.sendToken(coinbase, buyer.address, 100));
+    // debug("token gift:", await ops.sendToken(coinbase, buyer.address, 100));
     // debug("eth gift", await ops.sendEth(coinbase, buyer.address, "0.1"));
 
     // register

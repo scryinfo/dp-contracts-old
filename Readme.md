@@ -3,44 +3,27 @@ the Scry.Info whitepaper.
 
 # Requirements
 
-Python 3.6+
-
-[Geth 1.7.3]+ (https://github.com/ethereum/go-ethereum/wiki/Building-Ethereum)
+Node JS LTS +
+yarn
+Parity 1.10+
 
 [IPFS](https://github.com/ipfs/go-ipfs) should be installed & running as deamon.
 
 # Development
 
-create a virtualenv.
+Install node deps :
 
 ```
-python3 -m venv venv
+yarn
 ```
 
-Activate the environment:
-
-```
-. venv/bin/activate
-```
-
-Install python dependencies using pip:
-
-```
-pip install -r requirements.txt
-```
-
-In case of errors install dev libraries:
-
-```
-sudo apt-get install python3-dev
-```
 Run IPFS
 
 ```
 ipfs daemon
 ```
 
-Run ethereum:
+Run ethereum client:
 
 ```
 ./reset_parity.sh
@@ -49,54 +32,28 @@ Run ethereum:
 Compile contract:
 
 ```
-populus compile
+truffle compile
 ```
 
 Deploy contracts:
 
 ```
-python deploy.py
+node deploy.js
 ```
 
 Start server:
 
 ```
-[OLD] FLASK_APP=server.py flask run
+yarn dev
 ```
-
-```
-THREADING_BACKEND=gevent uwsgi --ini wsgi.ini
-```
-
-# Running tests
-
-Install additional python dependencies using pip:
-
-```
-pip install -r requirements-dev.txt
-```
-
-We use the python framework populus for smart contract development.
-
-See basic [tutorials](http://populus.readthedocs.io/en/latest/tutorial.html) for
-usage
 
 # REST endpoints
 
 The python server _sever.py_ provides REST endpoints.
 
-The server require a _Geth_ based external chain that needs to be started
-separately. A _reset.sh_ script will start a locally configured chain with the
+The server require an external chain that needs to be started
+separately. A _reset_parity.sh_ script will start a locally configured chain with the
 setup required for the App.
-
-Why exactly was a Geth based chain required?
-
-The local _tester_ chain uses a python implementation of ethereum that does not
-implement the _eth_sign_ message.
-
-A problem with using Geth solo is that transactions get stuck
-[Bug](https://github.com/ethereum/go-ethereum/issues/3694). We should probably
-figure out a way to use Parity.
 
 An example session can work like this:
 
@@ -202,9 +159,9 @@ curl
 
 ## Running the tests
 
-The tests in test*contract_simple.py run with with in-built _tester* chain.
+The tests in test*contract_simple.py run with with in-built \_tester* chain.
 
-The tests in test*contract.py require a _Geth* based external chain that needs
+The tests in test*contract.py require a \_Geth* based external chain that needs
 to be started separately.
 
 ## Imported Code

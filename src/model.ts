@@ -42,6 +42,24 @@ export class Trader {
 }
 
 @Entity()
+export class Categories {
+  @PrimaryGeneratedColumn() id!: number;
+
+  @Column({ length: 256, unique: true  })
+  name!: string;
+
+  @OneToMany(() => Listing, listing => listing.category_id)
+  listings!: Listing[];
+
+  @Column({ type: "jsonb" })
+  metadata!;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  created_at!: Date;
+
+}
+
+@Entity()
 export class Listing {
   @PrimaryGeneratedColumn() id!: number;
 
@@ -57,6 +75,9 @@ export class Listing {
   @ManyToOne(() => Trader, trader => trader.listings)
   owner!: Trader;
 
+  @ManyToOne(() => Categories, category => category.listings)
+  category!: Categories;
+
   @Column({ type: 'int' })
   price!: number;
 
@@ -65,6 +86,14 @@ export class Listing {
 
   @OneToMany(() => PurchaseOrder, po => po.listing)
   sales!: PurchaseOrder[];
+
+  @Column({ nullable: true})
+  isstructured!: boolean;
+
+  @Column({ length: 255, nullable: true  })
+  keywords!: string;
+
+
 }
 
 @Entity()
@@ -100,12 +129,14 @@ export class PurchaseOrder {
   created_at!: Date;
 }
 
+
+
 const config: PostgresConnectionOptions = {
   type: 'postgres',
   database: 'scry',
   schema: 'scry2',
   host: process.platform === 'linux' ? '/var/run/postgresql' : '/tmp',
-  entities: [Trader, Listing, PurchaseOrder],
+  entities: [Trader, Listing, PurchaseOrder, Categories],
   synchronize: true,
   logging: true
 };

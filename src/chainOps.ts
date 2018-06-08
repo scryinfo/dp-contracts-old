@@ -1,5 +1,4 @@
 import Web3 from 'web3';
-
 const debug = require('debug')('server:contract');
 
 let token: any;
@@ -85,4 +84,8 @@ export function ethBalance(account: string) {
 
 export function rawTx(tx: string) {
   return web3.eth.sendSignedTransaction(tx);
+}
+
+export function contractEvents() {
+  return contract.events;
 }

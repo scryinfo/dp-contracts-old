@@ -1,13 +1,13 @@
 {
   "name": "scry",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "build/js/server.js",
   "repository": "https://github.com/scryInfo/scry.git",
   "author": "Abhishek Kumar <bettiah@gmail.com>",
   "scripts": {
-    "dev": "tsc -w & DEBUG=server* nodemon build/js/server.js",
+    "dev": "tsc -w & DEBUG=server* nodemon",
     "build": "tsc",
-    "start": "DEBUG=server* node build/js/server.js"
+    "start": "DEBUG=server* node"
   },
   "dependencies": {
     "@warren-bank/ethereumjs-tx-unsign": "^2.0.0",
@@ -26,7 +26,8 @@
     "truffle": "^4.1.8",
     "typeorm": "^0.2.6",
     "typescript": "^2.8.3",
-    "web3": "^1.0.0-beta.34"
+    "web3": "^1.0.0-beta.34",
+    "ws": "^5.2.0"
   },
   "devDependencies": {
     "@types/axios": "^0.14.0",
@@ -37,6 +38,7 @@
     "@types/node": "^10.1.0",
     "@types/serve-static": "^1.13.2",
     "@types/underscore": "^1.8.8",
+    "@types/ws": "^5.1.2",
     "axios": "^0.18.0",
     "types-bn": "^0.0.1"
   }

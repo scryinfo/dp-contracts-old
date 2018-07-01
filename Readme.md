@@ -3,11 +3,12 @@ the Scry.Info whitepaper.
 
 # Requirements
 
-Node JS LTS +
-yarn
-Parity 1.10+
+- Node JS LTS +
+- yarn
+- Parity 1.10+
+- Postgresql 10.x
+- [IPFS](https://github.com/ipfs/go-ipfs) should be installed & running as deamon.
 
-[IPFS](https://github.com/ipfs/go-ipfs) should be installed & running as deamon.
 
 # Development
 
@@ -15,7 +16,15 @@ Install node deps :
 
 ```
 yarn
+# install truffle as global
+yarn install -g truffle
+createdb scry
+psql
+   CREATE DATABASE scry;
+   \connect foo;
+   CREATE SCHEMA scry2;
 ```
+
 
 Run IPFS
 

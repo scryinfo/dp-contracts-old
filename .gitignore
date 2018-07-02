@@ -6,6 +6,7 @@ chains/p/chain_data/
 chains/p/keys/test/dapps_history.json
 logs
 registrar.json
+deployments.json
 build
 node_modules
 yarn*

@@ -129,6 +129,8 @@ export class PurchaseController {
       return getRepository(PurchaseOrder)
         .createQueryBuilder('po')
         .leftJoinAndSelect('po.listing', 'listing')
+        .leftJoinAndSelect('po.buyer', 'buyer')
+        .leftJoinAndSelect('po.verifier', 'verifier')
         .leftJoinAndSelect('listing.owner', 'owner')
         .where('owner.account = :account', { account: seller })
         .getMany();
@@ -137,6 +139,7 @@ export class PurchaseController {
       return getRepository(PurchaseOrder)
         .createQueryBuilder('po')
         .leftJoinAndSelect('po.listing', 'listing')
+        .leftJoinAndSelect('po.buyer', 'buyer')
         .leftJoinAndSelect('listing.owner', 'owner')
         .leftJoinAndSelect('po.verifier', 'verifier')
         .where('verifier.account = :account', { account: verifier })

@@ -41,15 +41,22 @@ export class Trader {
   verifications!: PurchaseOrder[];
 }
 
+
 @Entity()
-export class Categories {
+export class CategoryTree {
   @PrimaryGeneratedColumn() id!: number;
 
   @Column({ length: 256, unique: true  })
   name!: string;
 
-  @OneToMany(() => Listing, listing => listing.category_id)
+  @OneToMany(() => Listing, listing => listing.id)
   listings!: Listing[];
+
+  @Column()
+  parent_id!:number;
+
+  @Column()
+  is_structured!: boolean;
 
   @Column({ type: "jsonb" })
   metadata!;
@@ -75,7 +82,7 @@ export class Listing {
   @ManyToOne(() => Trader, trader => trader.listings)
   owner!: Trader;
 
-  @ManyToOne(() => Categories, category => category.listings)
+  @ManyToOne(() => CategoryTree, category => CategoryTree.listings)
   category!: Categories;
 
   @Column({ type: 'int' })
@@ -86,9 +93,6 @@ export class Listing {
 
   @OneToMany(() => PurchaseOrder, po => po.listing)
   sales!: PurchaseOrder[];
-
-  @Column({ nullable: true})
-  isstructured!: boolean;
 
   @Column({ length: 255, nullable: true  })
   keywords!: string;
@@ -126,7 +130,7 @@ export class PurchaseOrder {
   rewards!: number;
 
   @CreateDateColumn({ type: 'timestamp' })
-  created_at!: Date;
+  created_at!: i;
 }
 
 
@@ -136,7 +140,7 @@ const config: PostgresConnectionOptions = {
   database: 'scry',
   schema: 'scry2',
   host: process.platform === 'linux' ? '/var/run/postgresql' : '/tmp',
-  entities: [Trader, Listing, PurchaseOrder, Categories],
+  entities: [Trader, Listing, PurchaseOrder, CategoryTree],
   synchronize: true,
   logging: true
 };

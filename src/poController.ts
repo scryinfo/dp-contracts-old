@@ -128,29 +128,33 @@ export class PurchaseController {
     if (seller) {
       return getRepository(PurchaseOrder)
         .createQueryBuilder('po')
-        .leftJoinAndSelect('po.listing', 'listing')
-        .leftJoinAndSelect('po.buyer', 'buyer')
-        .leftJoinAndSelect('po.verifier', 'verifier')
-        .leftJoinAndSelect('listing.owner', 'owner')
+        .select(['po', 'owner.name', 'owner.account', 'listing', 'buyer.name', 'buyer.account', 'verifier.name', 'verifier.account'])
+        .leftJoin('po.listing', 'listing')
+        .leftJoin('po.buyer', 'buyer')
+        .leftJoin('po.verifier', 'verifier')
+        .leftJoin('listing.owner', 'owner')
         .where('owner.account = :account', { account: seller })
         .getMany();
     }
     if (verifier) {
       return getRepository(PurchaseOrder)
         .createQueryBuilder('po')
-        .leftJoinAndSelect('po.listing', 'listing')
-        .leftJoinAndSelect('po.buyer', 'buyer')
-        .leftJoinAndSelect('listing.owner', 'owner')
-        .leftJoinAndSelect('po.verifier', 'verifier')
+        .select(['po', 'owner.name', 'owner.account', 'listing', 'buyer.name', 'buyer.account', 'verifier.name', 'verifier.account'])
+        .leftJoin('po.listing', 'listing')
+        .leftJoin('po.buyer', 'buyer')
+        .leftJoin('po.verifier', 'verifier')
+        .leftJoin('listing.owner', 'owner')
         .where('verifier.account = :account', { account: verifier })
         .getMany();
     }
     if (buyer) {
       return getRepository(PurchaseOrder)
         .createQueryBuilder('po')
-        .leftJoinAndSelect('po.listing', 'listing')
-        .leftJoinAndSelect('listing.owner', 'owner')
-        .leftJoinAndSelect('po.buyer', 'buyer')
+        .select(['po', 'owner.name', 'owner.account', 'listing', 'buyer.name', 'buyer.account', 'verifier.name', 'verifier.account'])
+        .leftJoin('po.listing', 'listing')
+        .leftJoin('po.buyer', 'buyer')
+        .leftJoin('po.verifier', 'verifier')
+        .leftJoin('listing.owner', 'owner')
         .where('buyer.account = :account', { account: buyer })
         .getMany();
     }
@@ -167,10 +171,11 @@ export class PurchaseController {
 function loadOrder(id: number) {
   return getRepository(PurchaseOrder)
     .createQueryBuilder('po')
-    .leftJoinAndSelect('po.listing', 'listing')
-    .leftJoinAndSelect('listing.owner', 'owner')
-    .leftJoinAndSelect('po.buyer', 'buyer')
-    .leftJoinAndSelect('po.verifier', 'verifier')
+    .select(['po', 'owner.name', 'owner.account', 'listing', 'buyer.name', 'buyer.account', 'verifier.name', 'verifier.account'])
+    .leftJoin('po.listing', 'listing')
+    .leftJoin('po.buyer', 'buyer')
+    .leftJoin('po.verifier', 'verifier')
+    .leftJoin('listing.owner', 'owner')
     .where('po.id = :id', { id: id })
     .getOne();
 }

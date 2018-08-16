@@ -37,19 +37,20 @@ export class ListingController {
   @Get('/listings')
   async getAll(@QueryParam('owner') owner?: string) {
     if (owner) {
-      const all = await getRepository(Listing)
+      return getRepository(Listing)
         .createQueryBuilder('listing')
-        .leftJoinAndSelect('listing.owner', 'owner')
+        .select(['listing', 'owner.name', 'owner.account', 'category'])
+        .leftJoin('listing.owner', 'owner')
+        .leftJoin('listing.category', 'category')
         .where('owner.account = :account', { account: owner })
         .getMany();
-      return all.map(it => {
-        return it;
-      });
     }
-    let all = await getRepository(Listing).find({ relations: ['owner'] });
-    return all.map(it => {
-      return it;
-    });
+    return getRepository(Listing)
+      .createQueryBuilder('listing')
+      .select(['listing', 'owner.name', 'owner.account', 'category'])
+      .leftJoin('listing.owner', 'owner')
+      .leftJoin('listing.category', 'category')
+      .getMany();
   }
 
   @Post('/seller/upload')

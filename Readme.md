@@ -18,10 +18,9 @@ Install node deps :
 yarn
 # install truffle as global
 yarn install -g truffle
-createdb scry
 psql
    CREATE DATABASE scry;
-   \connect foo;
+   \connect scry;
    CREATE SCHEMA scry2;
 ```
 

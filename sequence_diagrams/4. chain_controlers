@@ -1,0 +1,20 @@
+title: Add tokens to account
+
+Browser -> Node : fund(trader, amount, account)
+_: **1. Send some eth **
+Node -> Parity : sendEth (coinbase, account, '0.01')
+Parity -> Node : receipt
+
+_: **2. Send tokens **
+Node -> Parity : sendToken (coinbase, account, amount)
+Parity -> Node : receipt
+
+
+_: **3. Return Balance **
+Node -> Parity : tokenBalance (account)
+Parity -> Node : balance
+
+Node -> Parity : ethBalance (account)
+Parity -> Node : eth
+
+Node -> Browser : balance, eth

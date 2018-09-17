@@ -1,0 +1,247 @@
+title: Buy an item
+
+_: **1. Buy an item **
+
+Browser -> Parity : openChannel
+Parity -> Browser : createBlock
+
+Browser -> Parity : buyerAuthorization
+Parity -> Browser : buyerAuth
+
+Browser -> Node: post('buyer/purchase', data: {listing, buyer, verifier, rewards, createBlock, buyerAuth})
+Node -> Postgres : record_listing
+
+
+
+_: **2. Buy an item **
+
+
+
+export const buyerAuthorization = async (buyer, seller, createBlock, amount) => {
+  const vault = await loadVault(window.localStorage.getItem(buyer.username), buyer.password);
+  const key = `0x${await getKey(vault, buyer.password)}`;
+  const msg = `Receiver: ${seller}, Balance: ${amount}, At Block: ${createBlock}`;
+  return web3.eth.accounts.sign(msg, key);
+};
+
+
+
+------------------------------------------
+
+  title : init Signer
+
+  _: **1. Init Signer **
+
+  Browser -> Node : get('contract')
+  Node -> Browser : contract
+  Browser -> Parity : Contract(contract, contract.address)
+  Parity -> Browser: contract
+
+  Browser -> Node : get('token')
+  Node -> Browser : token
+  Browser -> Parity : Contract(token, token.address)
+  Parity -> Browser: token
+
+  Browser -> Node : get('chainInfo')
+  Node -> Browser : gasPrice, ChainId
+
+
+  _: **2. Buy item **
+
+  Browser -> Browser : buyItem (listing, username, password, buyer, verifier, rewardPercent)
+
+  _: **2.1 Open Channel **
+
+  Browser -> Browser : openChannel (price, {username, password}, ownerAccount, reward)
+  Browser -> Parity : token.methods.transfer(contract._address, amount, hx).encodeABI()
+  Parity -> Browser : payload
+
+  _: **2.2 Sign and send **
+
+
+  Browser -> Browser : loadVault(username, password)
+  Browser -> Node : get(/nonce/$ vault.address)
+  Node -> Parity : getTransactionCount(account)
+  Parity -> Node :
+  Node -> Browser :
+  Browser -> Browser : getKey(vault, password)
+  Browser -> Parity : signTransaction (tx, key)
+  Parity -> Browser : signed
+
+  Browser -> Node : post('/rawTx', data: { data: signed.rawTransaction, ...extra })
+  Node -> Parity
+
+  Parity -> Node : createdBlock
+
+  Node -> Browser : createdBlock
+
+  _: **2.3 Record in Postgres **
+
+
+  Browser -> Node: post('buyer/purchase', data: {listing, buyer, verifier, rewards, createBlock, buyerAuth})
+  Node -> Postgres : record_listing
+
+
+
+
+  title : Buy
+
+  Browser -> Browser : buyItem (listing, username, password, buyer, verifier, rewardPerecent)
+
+  Browser -> Parity : openChannel (price, {username, password}, ownerAccount, reward)
+  Parity -> Browser : createdBlock
+
+  ## What if the user closes the browser before the transaction is finished ?
+  Browser -> Parity : buyerAuthorization ({username, password}, ownerAccount, createdBlock, listingPrice)
+  Parity -> Browser : buyerAuth
+
+Browser -> Node: post('/buyer/purchase', data : {listing, buyer, verifier, rewards, createdBlock, buyerAuth.signature})
+
+Node -> Postgres : getTrader(account)
+Postgres -> Node
+
+Node -> Postgres : getListing(listing)
+Postgres -> Node
+
+Node -> Postgres : getVerifier(listing)
+Postgres -> Node
+
+Node -> Postgres : savePurchaseOrder(buyer, listing, verifier, create_block, needs_verification, needs_closure = true, buyer_auth, rewards)
+
+
+
+
+
+
+title : s
+
+
+
+Browser -> Parity : openChannel (price, {username, password}, ownerAccount, reward)
+
+
+toChecksumAddress(seller) + padLeft(reward, 8).slice(2) + padLeft(verifiers, 8).slice(2)
+
+export const openChannel = (amount, buyer, seller, reward, verifiers) => {
+  const hx = toChecksumAddress(seller) + padLeft(reward, 8).slice(2) + padLeft(verifiers, 8).slice(2);
+  console.info(`hx: ${hx}`);
+  console.log(token);
+  const payload = token.methods.transfer(contract._address, amount, hx).encodeABI();
+
+  return signAndSend(buyer, token._address, 198580, payload, 'rawTx');
+};
+
+export const buyerAuthorization = async (buyer, seller, createBlock, amount) => {
+  const vault = await loadVault(window.localStorage.getItem(buyer.username), buyer.password);
+  const key = `0x${await getKey(vault, buyer.password)}`;
+  const msg = `Receiver: ${seller}, Balance: ${amount}, At Block: ${createoBlock}`;
+  return web3.eth.accounts.sign(msg, key);
+};
+
+title : Sign And Send
+
+Browser -> Browser : loadVault(username, password)
+Browser -> Node : get(/nonce/$ vault.address)
+Node -> Parity : getTransactionCount(account)
+# This step could be removed
+Parity -> Node :
+Node -> Browser :
+Browser -> Browser : getKey(vault, password)
+Browser -> Parity : signTransaction ({chainId, gasPrice, from, nonce, to, gas,data}, key)
+Parity -> Browser : signedTransasction
+
+const signAndSend = async (from, to, gas, payload, url, extra) => {
+
+
+
+
+
+
+
+import Web3 from 'web3';
+import axios from 'axios';
+import { padLeft, toChecksumAddress } from 'web3-utils';
+
+import { HOST } from './Remote';
+import { loadVault, getKey } from './keys';
+
+const web3 = new Web3();
+
+let token;
+let contract;
+let gasPrice;
+let chainId;
+
+
+
+
+const signAndSend = async (from, to, gas, payload, url, extra) => {
+  const vault = await loadVault(window.localStorage.getItem(from.username), from.password);
+  const sender = toChecksumAddress(vault.addresses[0]);
+  const { data: { nonce } } = await axios.get(`${HOST}/nonce/${sender}`, {
+    headers: { JWT: localStorage.getItem('id_token') },
+  });
+  console.info(`nonce ${nonce} for acct: ${sender}`);
+  console.info(`from: ${sender} to: ${to}`);
+  const tx = {
+    chainId,
+    gasPrice,
+    nonce,
+    from: sender,
+    to,
+    gas,
+    data: payload,
+  };
+  console.info(`tx: ${JSON.stringify(tx)}`);
+
+  const key = `0x${await getKey(vault, from.password)}`;
+  console.info(`key: ${key}`);
+  const signed = await web3.eth.accounts.signTransaction(tx, key);
+  console.info('signed', signed);
+
+  const resp = await axios({
+    method: 'post',
+    url: `${HOST}/${url}`,
+    data: { data: signed.rawTransaction, ...extra },
+    headers: { JWT: localStorage.getItem('id_token') },
+  });
+  console.info('resp:', resp.data);
+  return resp.data.create_block;
+};
+
+export const openChannel = (amount, buyer, seller, reward, verifiers) => {
+  const hx = toChecksumAddress(seller) + padLeft(reward, 8).slice(2) + padLeft(verifiers, 8).slice(2);
+  console.info(`hx: ${hx}`);
+  console.log(token);
+  const payload = token.methods.transfer(contract._address, amount, hx).encodeABI();
+
+  return signAndSend(buyer, token._address, 198580, payload, 'rawTx');
+};
+
+export const buyerAuthorization = async (buyer, seller, createBlock, amount) => {
+  const vault = await loadVault(window.localStorage.getItem(buyer.username), buyer.password);
+  const key = `0x${await getKey(vault, buyer.password)}`;
+  const msg = `Receiver: ${seller}, Balance: ${amount}, At Block: ${createBlock}`;
+  return web3.eth.accounts.sign(msg, key);
+};
+
+export const verifierAuthorization = async (seller, verifier, cid) => {
+  if (!seller || !verifier) {
+    throw new Error(`invalid arguments for verification seller:${seller}, cid:${verifier}`);
+  }
+  const vault = await loadVault(window.localStorage.getItem(verifier.username), verifier.password);
+  const key = `0x${await getKey(vault, verifier.password)}`;
+  const msg = `Owner: ${seller}, For CID: ${cid}`;
+  return web3.eth.accounts.sign(msg, key);
+};
+
+export const closeChannel = async (...params) => {
+  console.info('close', params);
+  const [buyer, seller, verifier, createBlock, cid, amount, balanceSig, verifySig, id] = params;
+  const payload = contract.methods
+    .close(toChecksumAddress(buyer), createBlock, amount, balanceSig, toChecksumAddress(verifier), cid, verifySig)
+    .encodeABI();
+  console.info(`payload: ${payload}`);
+
+  return signAndSend(seller, contract._address, 315058, payload, 'seller/close', { id });
+};

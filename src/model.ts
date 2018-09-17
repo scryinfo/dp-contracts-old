@@ -52,13 +52,13 @@ export class CategoryTree {
   @OneToMany(() => Listing, listing => listing.id)
   listings!: Listing[];
 
-  @Column()
+  @Column({ nullable: true  })
   parent_id!:number;
 
   @Column()
   is_structured!: boolean;
 
-  @Column({ type: "jsonb" })
+  @Column({ type: "jsonb" , nullable: true})
   metadata!;
 
   @CreateDateColumn({ type: 'timestamp' })

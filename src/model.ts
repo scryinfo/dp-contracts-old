@@ -46,7 +46,7 @@ export class Trader {
 export class CategoryTree {
   @PrimaryGeneratedColumn() id!: number;
 
-  @Column({ length: 256, unique: true  })
+  @Column({ length: 256  })
   name!: string;
 
   @OneToMany(() => Listing, listing => listing.id)
@@ -142,10 +142,16 @@ const config: PostgresConnectionOptions = {
   host: process.platform === 'linux' ? '/var/run/postgresql' : '/tmp',
   entities: [Trader, Listing, PurchaseOrder, CategoryTree],
   synchronize: true,
-  logging: true
+  logging: true,
+  migrations : ["build/js/db_migration/*.js"],
+  cli:{
+    'migrationsDir':'db_migration'
+  },
 };
 
 export async function dbConnection() {
-  await createConnection(config);
+  await createConnection(config).then(async conn=>{
+    await conn.runMigrations()
+  });
   debug('db connected');
 }

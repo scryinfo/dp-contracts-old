@@ -8,7 +8,7 @@ export class CategoryTree1537343350807 implements MigrationInterface {
       await queryRunner.query('DROP TABLE IF EXISTS scry2.categories cascade');
       await queryRunner.query('DROP TABLE IF EXISTS scry2.listings cascade');
 
-      var dname =  path.join(__dirname, '../../../'+'db_migration/');
+      var dname =  path.join(__dirname, '../../../'+'src/db_migration/');
       let query = fs.readFileSync(dname+ 'category_tree_trigger.sql', "utf8")
       await queryRunner.query(query);
     }

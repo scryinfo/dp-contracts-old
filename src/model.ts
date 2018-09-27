@@ -6,8 +6,10 @@ import {
   Index,
   CreateDateColumn,
   ManyToOne,
-  OneToMany
+  OneToMany,
+  JoinColumn
 } from 'typeorm';
+
 
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
@@ -43,6 +45,27 @@ export class Trader {
 
 
 @Entity()
+export class Category {
+
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column()
+    title: string;
+
+    @Column()
+    text: string;
+
+    @ManyToOne(type => Category, category => category.childCategories)
+    @JoinColumn({ name: "category_id" })
+    parentCategory: Category;
+
+    @OneToMany(type => Category, category => category.parentCategory)
+    childCategories: Category[];
+
+}
+
+@Entity()
 export class CategoryTree {
   @PrimaryGeneratedColumn() id!: number;
 
@@ -52,8 +75,14 @@ export class CategoryTree {
   @OneToMany(() => Listing, listing => listing.id)
   listings!: Listing[];
 
-  @Column({ nullable: true  })
-  parent_id!:number;
+
+
+  @ManyToOne(type => CategoryTree, categorytree => categorytree.childCategoryTree)
+  @JoinColumn({ name: "parent_id" })
+  parent_id: CategoryTree;
+
+  @OneToMany(type => CategoryTree, categorytree => categorytree.parentCategoryTree)
+  child_id: CategoryTree[];
 
   @Column()
   is_structured!: boolean;
@@ -84,6 +113,7 @@ export class Listing {
 
   @ManyToOne(() => CategoryTree, category => CategoryTree.listings)
   category!: Categories;
+
 
   @Column({ type: 'int' })
   price!: number;
@@ -140,7 +170,8 @@ const config: PostgresConnectionOptions = {
   database: 'scry',
   schema: 'scry2',
   host: process.platform === 'linux' ? '/var/run/postgresql' : '/tmp',
-  entities: [Trader, Listing, PurchaseOrder, CategoryTree],
+//  entities: [Category],
+  entities: [Trader, Listing, PurchaseOrder, CategoryTree, Category],
   synchronize: true,
   logging: true,
   migrations : ["build/js/db_migration/*.js"],

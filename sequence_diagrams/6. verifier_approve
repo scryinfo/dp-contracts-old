@@ -1,0 +1,7 @@
+title : Verifier Approve
+Browser -> Browser : getVault(userName, password)
+Browser -> Browser : getKey(vault, password)
+Browser -> Parity : sign(msg, key)
+Parity -> Browser : verifierAuth
+Browser -> Node : post('verifier/sign')
+Node -> Postgres : saveListing(verifierAuth)

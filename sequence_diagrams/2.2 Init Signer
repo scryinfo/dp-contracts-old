@@ -1,0 +1,52 @@
+title : init Signer
+
+_: **1. Init Signer **
+
+Browser -> Node : get('contract')
+Node -> Browser : contract
+Browser -> Parity : Contract(contract, contract.address)
+Parity -> Browser: contract
+
+Browser -> Node : get('token')
+Node -> Browser : token
+Browser -> Parity : Contract(token, token.address)
+Parity -> Browser: token
+
+Browser -> Node : get('chainInfo')
+Node -> Browser : gasPrice, ChainId
+
+
+_: **2. Buy item **
+
+Browser -> Browser : buyItem (listing, username, password, buyer, verifier, rewardPercent)
+
+_: **2.1 Open Channel **
+
+Browser -> Browser : openChannel (price, {username, password}, ownerAccount, reward)
+Browser -> Parity : token.methods.transfer(contract._address, amount, hx).encodeABI()
+Parity -> Browser : payload
+
+_: **2.2 Sign and send **
+
+
+Browser -> Browser : loadVault(username, password)
+Browser -> Node : get(/nonce/$ vault.address)
+Node -> Parity : getTransactionCount(account)
+Parity -> Node :
+Node -> Browser :
+Browser -> Browser : getKey(vault, password)
+Browser -> Parity : signTransaction (tx, key)
+Parity -> Browser : signed
+
+Browser -> Node : post('/rawTx', data: { data: signed.rawTransaction, ...extra })
+Node -> Parity
+
+Parity -> Node : createdBlock
+
+Node -> Browser : createdBlock
+
+_: **2.3 Record in Postgres **
+
+
+Browser -> Node: post('buyer/purchase', data: {listing, buyer, verifier, rewards, createBlock, buyerAuth})
+Node -> Postgres : record_listing

@@ -1,0 +1,68 @@
+title : Sign And Send
+
+
+
+
+_: **1 Prepare payload **
+
+Browser -> Parity : token.methods.transfer(contract._address, amount, checksum(seller+reward+verifier))
+Parity -> Browser : payload
+
+
+SignAnd Send
+
+ signAndSend(buyer, token._address, 198580, payload, 'rawTx');
+};
+
+
+
+_: **2 Prepare transaction string **
+
+Browser -> Browser : loadVault [username, password]
+
+Browser -> Node : get('nonce/${sender}')
+Node-> Browser : nonce
+
+_: **3 Sign transaction **
+
+Browser -> Browser : getKey(vault, from.password)
+Browser -> Parity : signTransaction ({chainId, gasPrice, from, nonce, to, 198580, data}, key)
+Parity -> Browsper : signed
+
+_: **3 Send signed transaction **
+
+Browser -> Node : post('rawTx', data:signed.RawTransactiont)
+Node -> Parity : sendSignedTransaction(tx)
+Parity -> Node : createdBlock
+Node -> Browser : createdBlock
+
+
+    chainId,
+    gasPrice,
+    from: toChecksumAddress(vault.loadVault(window.localStorage.getItem(from.username), from.password)[0]),
+    nonce: await axios.get(`${HOST}/nonce/${sender},
+    to,
+    gas,
+    data: payload,
+  };
+
+#Sign transaction
+  const signed = await web3.eth.accounts.signTransaction(tx, `0x${await getKey(vault, from.password)}`);
+
+
+#sendSignedTransaction
+
+  const resp = await axios({
+    method: 'post',Get vaults
+    url: `${HOST}/${url}`,
+    data: { data: signed.rawTransaction, ...extra },
+    headers: { JWT: localStorage.getItem('id_token') },
+  });
+  console.info('resp:', resp.data);
+  return resp.data.create_block;
+};
+
+# NODE
+  export function rawTx(tx: string) {
+    return web3.eth.sendSignedTransaction(tx);
+  }

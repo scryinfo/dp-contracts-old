@@ -1,0 +1,14 @@
+title : Upload / Download file
+
+_: **1. Upload**
+Browser -> Node : POST(UploadedFile, listingargs)
+Node -> IPFS : add(UploadedFile)
+IPFS -> Node : IPFS_hash
+Node -> Postgres : save(listing)
+
+_: **2. Download**
+
+Browser -> Node : POST(IPFS_hash)
+Node -> IPFS : get(IPFS_hash)
+IPFS -> Node : raw
+Node -> Browser : raw.content

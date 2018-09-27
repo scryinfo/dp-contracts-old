@@ -6,8 +6,10 @@ import {
   Index,
   CreateDateColumn,
   ManyToOne,
-  OneToMany
+  OneToMany,
+  JoinColumn
 } from 'typeorm';
+
 
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
@@ -41,17 +43,51 @@ export class Trader {
   verifications!: PurchaseOrder[];
 }
 
+
 @Entity()
-export class Categories {
+export class Category {
+
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column()
+    title: string;
+
+    @Column()
+    text: string;
+
+    @ManyToOne(type => Category, category => category.childCategories)
+    @JoinColumn({ name: "category_id" })
+    parentCategory: Category;
+
+    @OneToMany(type => Category, category => category.parentCategory)
+    childCategories: Category[];
+
+}
+
+@Entity()
+export class CategoryTree {
   @PrimaryGeneratedColumn() id!: number;
 
-  @Column({ length: 256, unique: true  })
+  @Column({ length: 256  })
   name!: string;
 
-  @OneToMany(() => Listing, listing => listing.category_id)
+  @OneToMany(() => Listing, listing => listing.id)
   listings!: Listing[];
 
-  @Column({ type: "jsonb" })
+
+
+  @ManyToOne(type => CategoryTree, categorytree => categorytree.childCategoryTree)
+  @JoinColumn({ name: "parent_id" })
+  parent_id: CategoryTree;
+
+  @OneToMany(type => CategoryTree, categorytree => categorytree.parentCategoryTree)
+  child_id: CategoryTree[];
+
+  @Column()
+  is_structured!: boolean;
+
+  @Column({ type: "jsonb" , nullable: true})
   metadata!;
 
   @CreateDateColumn({ type: 'timestamp' })
@@ -75,8 +111,9 @@ export class Listing {
   @ManyToOne(() => Trader, trader => trader.listings)
   owner!: Trader;
 
-  @ManyToOne(() => Categories, category => category.listings)
+  @ManyToOne(() => CategoryTree, category => CategoryTree.listings)
   category!: Categories;
+
 
   @Column({ type: 'int' })
   price!: number;
@@ -86,9 +123,6 @@ export class Listing {
 
   @OneToMany(() => PurchaseOrder, po => po.listing)
   sales!: PurchaseOrder[];
-
-  @Column({ nullable: true})
-  isstructured!: boolean;
 
   @Column({ length: 255, nullable: true  })
   keywords!: string;
@@ -126,7 +160,7 @@ export class PurchaseOrder {
   rewards!: number;
 
   @CreateDateColumn({ type: 'timestamp' })
-  created_at!: Date;
+  created_at!: i;
 }
 
 
@@ -136,12 +170,19 @@ const config: PostgresConnectionOptions = {
   database: 'scry',
   schema: 'scry2',
   host: process.platform === 'linux' ? '/var/run/postgresql' : '/tmp',
-  entities: [Trader, Listing, PurchaseOrder, Categories],
+//  entities: [Category],
+  entities: [Trader, Listing, PurchaseOrder, CategoryTree, Category],
   synchronize: true,
-  logging: true
+  logging: true,
+  migrations : ["build/js/db_migration/*.js"],
+  cli:{
+    'migrationsDir':'db_migration'
+  },
 };
 
 export async function dbConnection() {
-  await createConnection(config);
+  await createConnection(config).then(async conn=>{
+    await conn.runMigrations()
+  });
   debug('db connected');
 }

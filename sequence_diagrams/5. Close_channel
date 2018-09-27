@@ -1,0 +1,29 @@
+
+title : close channel
+
+_: ** Get purchase order info  **
+
+Browser -> Node : get('history/${id}')
+Node -> Postgres :
+Postgre -> Node : data
+Node -> Browser : data
+
+_: ** If verifier is null - call verifier Approve  **
+Browser -> Browser : getVault(sellername, password)
+Browser -> Browser : getKey(vault, password)
+Browser -> Parity : sign(msg, key)
+Parity -> Browser : verifierAuth
+
+_: ** Close the channel  **
+Browser -> Parity : contract.methods.close()
+Parity -> Browser : Payload
+
+Browser -> Parity : signTransaction()
+Parity -> Browser : signed
+
+Browser -> Node : post('seller/close')
+Node -> Parity : sendSignedTransaction()
+Parity -> Node : receipt
+Node -> Postgres : save(order.needs_close = False)
+Postgres -> Node :
+Node -> Browser : blocknumber, purchase, receipt

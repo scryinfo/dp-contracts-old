@@ -79,7 +79,12 @@ export function tokenBalance(account: string) {
 export function ethBalance(account: string) {
   return web3.eth
     .getBalance(account)
-    .then(wei => parseFloat(web3.utils.fromWei(wei, 'ether')));
+    .then(wei => {
+      let converted = web3.utils.fromWei(wei, 'ether');
+      if(typeof converted == 'string') {
+        parseFloat(converted);
+      }
+    });
 }
 
 export function rawTx(tx: string) {

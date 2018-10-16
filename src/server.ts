@@ -67,6 +67,7 @@ useExpressServer(app, {
   // routePrefix: '/api2',
   cors: true,
   authorizationChecker: (action: Action, roles: string[]) => {
+    debug(`roles passed (TODO): ${roles}`)
     return checkToken(action.request.headers['jwt']) == null ? false : true;
   },
   currentUserChecker: async (action: Action) => {
@@ -109,9 +110,9 @@ wss.on('connection', (ws, req) => {
   const user = (req as Request).user;
   debug(`WS connection from user:`, user.name, user.account);
   // drop messages
-  // ws.on('message', message => {
-  //   debug(`WS message ${message} from user:`, (req as Request).user);
-  // });
+  ws.on('message', message => {
+    debug(`WS message ${message} from user:`, (req as Request).user);
+  });
 });
 
 init()

@@ -1,0 +1,37 @@
+version: '3.3'
+
+networks:
+  default:
+    driver: overlay
+    attachable: true
+
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: scry
+      POSTGRES_PASSWORD: scry
+    ports:
+      - 5432:5432
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+  
+  dfs:
+    image: ipfs/go-ipfs:latest
+    ports:
+      - 4001:4001 
+      - 8080:8080 
+      - 5001:5001
+    volumes:
+        - ./data/ipfs/staging:/export
+        - ./data/ipfs/data:/data/ipfs 
+  
+  blockchain:
+    image: scryinfo/ethereum:latest
+    ports:
+      - 8545:8545 
+      - 30303:30303 
+    volumes:
+      - ./data/ethereum:/root
+      - ../chains:/root/chains

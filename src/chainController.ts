@@ -88,10 +88,12 @@ export class ChainController {
   @Authorized()
   @Post('/rawTx')
   async rawTx(@Body() raw: any) {
-    let receipt = await ops.rawTx(raw.data);
+    // suppress type information since we arbitrary assign later
+    let receipt:any = await ops.rawTx(raw.data);
     debug('rawTx receipt:', receipt);
     // backward compat
     if (receipt.status) {
+      /* tslint:disable-next-line */
       receipt['create_block'] = receipt.blockNumber;
     }
     return receipt;

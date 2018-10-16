@@ -81,7 +81,7 @@ export class ListingController {
     // check if either user is owner,
     // has paid for it,
     // or has been assigned as verifier - TODO
-    let raw = '';
+    let raw : any;
     try {
       [raw] = await ipfs.files.get(cid);
       debug(raw);

@@ -13,7 +13,7 @@ import {
 import { PurchaseOrder, Trader, Listing } from './model';
 import { getRepository } from 'typeorm';
 import { rawTx } from './chainOps';
-import { MinLength, IsNumber } from 'class-validator';
+import { IsNumber } from 'class-validator';
 
 const debug = require('debug')('server:purchase');
 
@@ -109,7 +109,7 @@ export class PurchaseController {
     const receipt = await rawTx(close.data);
     debug('close receipt:', receipt);
     order.needs_closure = false;
-    const closed = await getRepository(PurchaseOrder).save(order);
+    await getRepository(PurchaseOrder).save(order);
     return {
       create_block: receipt.blockNumber,
       purchase: order,
@@ -120,7 +120,6 @@ export class PurchaseController {
   @Get('/history')
   async history(
     @CurrentUser({ required: true })
-    trader: Trader,
     @QueryParam('buyer') buyer?: string,
     @QueryParam('seller') seller?: string,
     @QueryParam('verifier') verifier?: string

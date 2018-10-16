@@ -4,6 +4,7 @@
   "coinbase": "0xcb85348529b63dae26f343459d2ab3e01fcce1ca",
   "extraData": "0x686f727365",
   "config": {
+    "chainId": 1234, 
     "daoForkBlock": 0,
     "daoForSupport": true,
     "homesteadBlock": 0,

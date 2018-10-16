@@ -1,0 +1,11 @@
+FROM ethereum/client-go
+
+WORKDIR /root
+
+COPY ./chains/ /root/chains/
+
+RUN rm -rf /root/chains/scrychain/chain_data
+RUN mkdir -p /root/chains/scrychain/chain_data
+RUN /root/chains/scrychain/init_chain.sh
+
+ENTRYPOINT ["/root/chains/scrychain/run_chain.sh"]

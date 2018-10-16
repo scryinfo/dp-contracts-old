@@ -3,7 +3,7 @@ import { Trader } from './model';
 import { newToken, verifyToken } from './jwt';
 import { getRepository } from 'typeorm';
 
-const auth = require('passport-local-authenticate');
+import auth from 'passport-local-authenticate';
 
 const debug = require('debug')('server:auth');
 
@@ -23,7 +23,7 @@ export async function authenticate(
   if (!trader) {
     throw new UnauthorizedError('user does not exist');
   }
-  const [_, salt, hash] = trader!.password_hash.split('$', 3);
+  const [, salt, hash] = trader!.password_hash.split('$', 3);
 
   return new Promise<any>((resolve, reject) => {
     auth.verify(password, { salt, hash }, options, function(

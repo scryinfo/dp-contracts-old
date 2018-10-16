@@ -1,7 +1,7 @@
 const fs = require('fs');
 const Web3 = require('web3');
 
-const provider = new Web3.providers.WebsocketProvider('ws://localhost:8546');
+const provider = new Web3.providers.WebsocketProvider('ws://blockchain:8546');
 const web3 = new Web3(provider);
 
 let coinbase = ""
@@ -14,7 +14,7 @@ async function deploy(cname, args) {
             arguments: args,
         }).send({
             from: coinbase,
-            gas: 4712388,
+            gas: 5000,
         }, function (error, transactionHash) {})
         .on('error', function (error) {
             throw error;

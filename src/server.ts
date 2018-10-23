@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express: any = require('express');
 import http from 'http';
 import ws from 'ws';

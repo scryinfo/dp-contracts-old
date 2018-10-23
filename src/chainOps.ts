@@ -6,12 +6,14 @@ let contract: any;
 let web3: Web3;
 let coinbase: string;
 
+const config = require('./config');
+
 const _token = require('../../build/contracts/ScryToken.json');
 const _contract = require('../../build/contracts/Scry.json');
 const _deployments = require('../../deployments.json');
 
 export async function initChain() {
-  const provider = new Web3.providers.WebsocketProvider('ws://localhost:8546');
+  const provider = new Web3.providers.WebsocketProvider(config.parityUri);
   web3 = new Web3(provider);
   const network = await web3.eth.net.getId();
   debug('network:', network);

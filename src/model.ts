@@ -129,13 +129,13 @@ export class PurchaseOrder {
   created_at!: Date;
 }
 
-
-
 const config: PostgresConnectionOptions = {
   type: 'postgres',
-  database: 'scry',
-  schema: 'scry2',
-  host: process.platform === 'linux' ? '/var/run/postgresql' : '/tmp',
+  database: process.env.PG_DB,
+  schema: process.env.PG_DB_SCHEMA,
+  host: process.env.PG_HOST,
+  username: process.env.PG_USER,
+  password: process.env.PG_PASSWORD,
   entities: [Trader, Listing, PurchaseOrder, Categories],
   synchronize: true,
   logging: true

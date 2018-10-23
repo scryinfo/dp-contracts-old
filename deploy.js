@@ -1,7 +1,9 @@
+require('dotenv').config();
+
 const fs = require('fs');
 const Web3 = require('web3');
 
-const provider = new Web3.providers.WebsocketProvider('ws://localhost:8546');
+const provider = new Web3.providers.WebsocketProvider(process.env.PARITY_URI);
 const web3 = new Web3(provider);
 
 let coinbase = ""

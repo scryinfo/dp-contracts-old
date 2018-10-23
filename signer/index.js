@@ -1,12 +1,14 @@
 'use strict';
 
+require('dotenv').config();
+
 const axios = require('axios');
 const Web3 = require('web3');
 const { padLeft } = require('web3-utils');
 const _token = require('../build/contracts/ScryToken.json');
 const _scry = require('../build/contracts/Scry.json');
 
-const provider = new Web3.providers.WebsocketProvider('ws://localhost:8546');
+const provider = new Web3.providers.WebsocketProvider(process.env.PARITY_URI);
 const web3 = new Web3(provider);
 // const web3 = new Web3();
 

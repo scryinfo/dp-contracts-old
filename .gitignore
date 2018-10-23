@@ -15,3 +15,8 @@ venv
 node_modules
 yarn*
 build/
+docker/data
+data
+.npm
+.env
+.env.docker

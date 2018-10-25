@@ -5,7 +5,7 @@ the Scry.Info whitepaper.
 
 Preferred way to run the scry-server is in docker. The docker-compose.yml file here creates an environment with scry-server and all its dependencies (ipfs, parity, postgresql)
 
-1. Install Docker: https://docs.docker.com/install/
+1. Install Docker: https://docs.docker.com/install/. If you are on Ubuntu 16.04, do not use docker contained in the Ubuntu repositories, it is too old. Follow this howto: https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-16-04
 2. Copy the `.env.example` configuration file to `.env` (for local runs) and to `.env.docker` (will be used in the scry-server container:
 ```
 cp .env.example .env
@@ -16,7 +16,10 @@ cp .env.example .env.docker
 ```
 bash docker/create-data-dirs.sh
 ```
-3. Build+start the environment using docker-compose. **docker-compose must always be run in the directory where the docker-compose.yml is located**:
+3. Build+start the environment using docker-compose. Important notes:
+- **docker-compose must always be run in the directory where the docker-compose.yml is located**
+- **If you have local instance of parity, postgresql or ipfs running, stop them before starting those containers**
+- -d means "detached" - the containers will continue to run in background and will not block your terminal
 ```
 docker-compose up -d
 ```
@@ -28,6 +31,16 @@ This will create four containers (check docker-compose.yml for more details):
 4. Deploy the contracts:
 ```
 docker-compose exec scry-server node /home/node/scry-server/deploy.js
+```
+
+## stopping and restarting the stack
+
+The containers create files in the persistent folders that can not be read by the user you run docker with (only by root). To be able to rebuild the containers (after a change), you have to clean the data dirs as root (using sudo):
+
+```
+docker-compose down // stop the environment
+sudo bash docker/clean-data-dirs.sh
+docker-compose up --build
 ```
 
 ## developing with docker
@@ -49,7 +62,7 @@ The postgres, ipfs and parity containers use permanent storage by attaching host
 
 ```
 docker-compose down
-bash docker/clean-data-dirs.sh    // removes ipfs, postgres and parity's chain_data with rm -rf
+sudo bash docker/clean-data-dirs.sh    // removes ipfs, postgres and parity's chain_data with rm -rf
 docker-compose up -d --build      // rebuilds the containers if there were any changes
                                   // in code or in docker-compose.yml and starts the environment again
 ```

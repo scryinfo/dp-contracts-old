@@ -75,14 +75,6 @@ Should be possible, haven't tried. Uncomment following lines in docker-compose.y
 #      - .:/home/node
 ```
 
-
-## details about containers
-
-### scry-server
-
-possibility to attach current working directory into the container for development purposes
-
-
 # Requirements
 
 - Node JS LTS +

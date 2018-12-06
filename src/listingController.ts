@@ -15,13 +15,15 @@ import { Listing, Trader } from './model';
 import { getRepository } from 'typeorm';
 import { Response } from 'express';
 
+const config = require('./config');
+
 const debug = require('debug')('server:listing');
 
 const ipfsApi = require('ipfs-api');
 let ipfs: any;
 
 export async function initIpfs() {
-  ipfs = ipfsApi('/ip4/127.0.0.1/tcp/5001');
+  ipfs = ipfsApi(config.ipfsHost, config.ipfsPort, {protocol: config.ipfsProtocol});
   debug('ipfs:', await ipfs.id());
 }
 

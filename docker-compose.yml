@@ -1,0 +1,68 @@
+# Configuration:
+# Postgres username, as defined in the "postgres" service environment variables POSTGRES_USER and POSTGRES_PASSWORD, have to be put in a .env file
+# Each service is one docker container, its IP address is resolveable by its name (so to access parity, point the application to ws://parity:8546)
+
+version: '3'
+
+# the postgres image creates a database with same name as the POSTGRES_USER variable
+# any scripts or .sql files in /docker-entrypoint-initdb.d will be executed when building the container
+services:
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: scry
+      POSTGRES_PASSWORD: scry
+    ports:
+      - 5432:5432
+    volumes:
+      - ./docker/data/postgres:/var/lib/postgresql/data
+      - ./docker/postgres-initdb:/docker-entrypoint-initdb.d
+
+  ipfs:
+    image: ipfs/go-ipfs:latest
+    restart: always
+    ports:
+      - 4001:4001
+      - 8080:8080
+      - 5001:5001
+    volumes:
+        - ./docker/data/ipfs/staging:/export
+        - ./docker/data/ipfs/data:/data/ipfs
+
+  parity:
+    image: parity/parity:v2.0.6
+    restart: always
+    ports:
+      - 30303:30303
+      - 8545:8545
+      - 8546:8546
+      - 8180:8180
+    volumes:
+      - ./chains:/root/chains
+    command: -l own_tx=trace,signer=trace,rpc=trace --base-path /root/chains/p/chain_data --config /root/chains/p/parity.toml --chain /root/chains/p/parity.json --keys-path /root/chains/p/keys/ --peers 0 --unlock 0x84de23c456c5a9cbd377a35ad3b0d9360191f42f,0xa77082957d1345f19d0a05050f49f5a76e31a055,0xb484d10180d7893bad4825299b09b66bb6929ea9,0xd372eab3c4e20442431652123bbaa8c4d9700313 --author=0x84de23c456c5a9cbd377a35ad3b0d9360191f42f --password /root/chains/p/password --geth
+
+  scry-server:
+    build: .
+    restart: always
+    ports:
+      - 1234:1234
+#    environment:
+#      NODE_ENV=production
+    depends_on:
+      - "postgres"
+      - "ipfs"
+      - "parity"
+#    volumes:
+#      - .:/home/node
+
+# might be necessary to change the address of the postgres server
+
+  # blockchain:
+  #   image: scryinfo/ethereum:latest
+  #   ports:
+  #     - 8545:8545
+  #     - 30303:30303
+  #   volumes:
+  #     - ./data/ethereum:/root
+  #     - ../chains:/root/chains

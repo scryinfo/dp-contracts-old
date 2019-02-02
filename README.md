@@ -1,5 +1,8 @@
-This directory contains the Proof Of Concept for some of the ideas put forth in
-the Scry.Info whitepaper.
+# Overview
+Three projects implements the Proof Of Concept for some of the ideas put forth in the Scry.Info whitepaper:
+- scry-server [scryInfo/scry](https://github.com/scryInfo/scry/edit/master/README.md) 
+- frontend [cryInfo/scry-frontend](https://github.com/scryInfo/scry-frontend)
+- publishing backend [publisher-backend](https://github.com/scryInfo/publisher-backend)
 
 # Running with docker
 

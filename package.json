@@ -2,7 +2,7 @@
   "name": "scry",
   "version": "1.0.0",
   "main": "build/js/server.js",
-  "repository": "https://github.com/scryInfo/scry.git",
+  "repository": "https://github.com/scryinfo/dp-contracts-old.git",
   "author": "Abhishek Kumar <bettiah@gmail.com>",
   "scripts": {
     "dev": "tsc -w & DEBUG=server* nodemon",
